@@ -7,7 +7,6 @@ export function Hero() {
     <section className="w-full min-h-[70vh] flex justify-center items-center border-border  ">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12 lg:flex-row lg:px-8 lg:py-16">
         <div className="relative flex flex-1 flex-col justify-center gap-6 animate-in fade-in slide-in-from-left-6 duration-700">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium tracking-tight backdrop-blur"></div>
           <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
             Smart disease prediction &amp;{" "}
             <span className="text-sky-400">doctor recommendations</span>

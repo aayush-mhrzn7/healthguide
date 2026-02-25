@@ -97,7 +97,7 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Full name</p>
                   <p className="text-sm font-semibold text-foreground">
-                    Alex Johnson
+                    Aayush Maharjan
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -105,20 +105,18 @@ export default function ProfilePage() {
                     Date of birth
                   </p>
                   <p className="text-sm font-semibold text-foreground">
-                    May 12, 1991
+                    June 10, 2004
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Gender</p>
-                  <p className="text-sm font-semibold text-foreground">
-                    Female
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">Male</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">
                     Blood type
                   </p>
-                  <p className="text-sm font-semibold text-foreground">O+</p>
+                  <p className="text-sm font-semibold text-foreground">AB+</p>
                 </div>
               </CardContent>
             </Card>
@@ -137,14 +135,14 @@ export default function ProfilePage() {
                   <p className="text-[11px] text-muted-foreground">Email</p>
                   <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                     <Mail className="h-3.5 w-3.5" />
-                    alex.johnson@example.com
+                    aayushmaharjan497@gmail.com
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Phone</p>
                   <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                     <Phone className="h-3.5 w-3.5" />
-                    +1 (555) 123-4567
+                    9823202410
                   </p>
                 </div>
                 <div className="space-y-1 sm:col-span-2">
@@ -153,7 +151,7 @@ export default function ProfilePage() {
                   </p>
                   <p className="flex items-center gap-1 text-sm font-semibold text-foreground">
                     <MapPin className="h-3.5 w-3.5" />
-                    123 Willow Street, San Francisco, CA
+                    Shankhamul, Lalitpur
                   </p>
                 </div>
               </CardContent>
