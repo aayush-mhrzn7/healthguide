@@ -24,7 +24,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
   })
 
   const onSubmit = (values: AuthValues) => {
-    // For now just log; wire to API later.
     console.log(mode.toUpperCase(), values)
   }
 
