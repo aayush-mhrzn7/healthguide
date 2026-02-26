@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   BadgeCheck,
@@ -6,6 +9,7 @@ import {
   HeartPulse,
   MapPin,
   Settings2,
+  LogOut,
   Star,
   User2,
 } from "lucide-react";
@@ -65,6 +69,26 @@ const PAST = [
 ];
 
 export default function AppointmentsPage() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignore network errors on logout
+    }
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("accessToken");
+      window.localStorage.removeItem("user");
+    }
+
+    router.push("/login");
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/80 md:flex">
@@ -103,6 +127,14 @@ export default function AppointmentsPage() {
             <Settings2 className="h-4 w-4" />
             <span>Settings</span>
           </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Log out</span>
+          </button>
         </nav>
       </aside>
 

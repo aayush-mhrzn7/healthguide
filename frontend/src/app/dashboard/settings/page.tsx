@@ -11,6 +11,7 @@ import {
   Settings2,
   ShieldCheck,
   SunMedium,
+  LogOut,
   User2,
 } from "lucide-react";
 
@@ -25,10 +26,32 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignore network errors on logout
+      // eslint-disable-next-line no-console
+    }
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("accessToken");
+      window.localStorage.removeItem("user");
+    }
+
+    router.push("/login");
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
@@ -68,6 +91,14 @@ export default function SettingsPage() {
             <Settings2 className="h-4 w-4" />
             <span>Settings</span>
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Log out</span>
+          </button>
         </nav>
       </aside>
 
