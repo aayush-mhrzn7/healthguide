@@ -2,10 +2,13 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 
+import type { UserRole } from "../db/schema";
+
 export type AuthUserPayload = {
   id: number;
   email: string;
   name: string;
+  role: UserRole;
 };
 
 export interface AuthRequest extends Request {
@@ -32,6 +35,7 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction) {
       sub: string;
       email: string;
       name: string;
+      role?: UserRole;
     };
 
     const userId = Number(payload.sub);
@@ -44,6 +48,7 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction) {
       id: userId,
       email: payload.email,
       name: payload.name,
+      role: payload.role ?? "user",
     };
 
     return next();
@@ -52,3 +57,18 @@ export function verifyJwt(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export function requireRole(allowedRoles: UserRole[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { authUser } = req as AuthRequest;
+
+    if (!authUser) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (!allowedRoles.includes(authUser.role)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    return next();
+  };
+}

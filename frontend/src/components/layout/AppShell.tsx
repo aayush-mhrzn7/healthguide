@@ -12,9 +12,12 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
-  const isDashboard = pathname?.startsWith("/dashboard")
+  const isAppLayout =
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/doctor") ||
+    pathname?.startsWith("/admin")
 
-  if (isDashboard) {
+  if (isAppLayout) {
     return (
       <ThemeProvider>
         <div className="flex min-h-screen flex-col">{children}</div>

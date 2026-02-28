@@ -35,7 +35,7 @@ const updateProfileSchema = z.object({
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
 
-type JwtUser = Pick<DbUser, "id" | "email" | "name">;
+type JwtUser = Pick<DbUser, "id" | "email" | "name" | "role">;
 
 function generateTokens(user: JwtUser) {
   const jwtSecret = process.env.JWT_SECRET;
@@ -49,6 +49,7 @@ function generateTokens(user: JwtUser) {
     sub: user.id.toString(),
     email: user.email,
     name: user.name,
+    role: user.role,
   };
 
   const accessToken = jwt.sign(payload, jwtSecret, {
@@ -110,6 +111,7 @@ export async function signup(req: Request, res: Response) {
         id: user.id.toString(),
         name: user.name,
         email: user.email,
+        role: user.role,
         dateOfBirth: user.dateOfBirth,
         gender: user.gender,
         bloodType: user.bloodType,
@@ -169,6 +171,7 @@ export async function login(req: Request, res: Response) {
         id: existingUser.id.toString(),
         name: existingUser.name,
         email: existingUser.email,
+        role: existingUser.role,
         dateOfBirth: existingUser.dateOfBirth,
         gender: existingUser.gender,
         bloodType: existingUser.bloodType,
@@ -266,6 +269,7 @@ export async function getMe(req: Request, res: Response) {
       id: user.id.toString(),
       name: user.name,
       email: user.email,
+      role: user.role,
       dateOfBirth: user.dateOfBirth,
       gender: user.gender,
       bloodType: user.bloodType,
@@ -339,6 +343,7 @@ export async function updateMe(req: Request, res: Response) {
       id: updated.id.toString(),
       name: updated.name,
       email: updated.email,
+      role: updated.role,
       dateOfBirth: updated.dateOfBirth,
       gender: updated.gender,
       bloodType: updated.bloodType,

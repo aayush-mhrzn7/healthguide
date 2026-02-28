@@ -28,6 +28,13 @@ const loginSchema = baseSchema.omit({ name: true });
 
 type AuthValues = z.infer<typeof baseSchema>;
 
+type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "user" | "doctor" | "admin";
+};
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
 
@@ -45,7 +52,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const endpoint = mode === "signup" ? "/auth/signup" : "/auth/login";
       const response = await api.post<{
-        user: { id: string; name: string; email: string };
+        user: AuthUser;
         accessToken: string;
       }>(endpoint, values);
 
@@ -54,7 +61,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
         window.localStorage.setItem("user", JSON.stringify(response.data.user));
       }
 
-      router.push("/dashboard/profile");
+      const role = response.data.user.role;
+
+      if (role === "admin") {
+        router.push("/admin");
+      } else if (role === "doctor") {
+        router.push("/doctor");
+      } else {
+        router.push("/dashboard/profile");
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Auth error", error);
