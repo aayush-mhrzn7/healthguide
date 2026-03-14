@@ -11,10 +11,22 @@ import {
   type DbUser,
 } from "../db/schema";
 
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(
+    /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
+    "Password must contain both letters and numbers (alphanumeric only)"
+  );
+
 const createDoctorSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: passwordSchema,
+  specialty: z
+    .enum(["general", "respiratory", "allergy", "cardiology"])
+    .optional()
+    .default("general"),
 });
 
 export async function createDoctor(req: Request, res: Response) {
@@ -27,7 +39,7 @@ export async function createDoctor(req: Request, res: Response) {
     });
   }
 
-  const { name, email, password } = parseResult.data;
+  const { name, email, password, specialty } = parseResult.data;
 
   const existing = await db
     .select()
@@ -48,6 +60,7 @@ export async function createDoctor(req: Request, res: Response) {
       email,
       passwordHash,
       role: "doctor",
+      specialty,
     })
     .returning();
 
@@ -57,6 +70,7 @@ export async function createDoctor(req: Request, res: Response) {
       name: doctor.name,
       email: doctor.email,
       role: doctor.role,
+      specialty: doctor.specialty,
     },
   });
 }

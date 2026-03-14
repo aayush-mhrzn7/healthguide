@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 
 import { db } from "../db/client";
 import {
@@ -99,5 +99,62 @@ export async function getDoctorAppointments(req: Request, res: Response) {
   );
 
   return res.json({ appointments: data });
+}
+
+export async function getUserAppointments(req: Request, res: Response) {
+  const { authUser } = req as AuthRequest;
+
+  if (!authUser) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const rows = await db
+    .select({
+      appointment: appointments,
+      doctor: users,
+    })
+    .from(appointments)
+    .leftJoin(users, eq(users.id, appointments.doctorId))
+    .where(eq(appointments.patientId, authUser.id))
+    .orderBy(desc(appointments.startsAt));
+
+  const data = rows.map(
+    (row: { appointment: DbAppointment; doctor: DbUser | null }) => ({
+      id: row.appointment.id,
+      doctorId: row.appointment.doctorId,
+      doctorName: row.doctor?.name ?? "Unknown doctor",
+      doctorEmail: row.doctor?.email,
+      startsAt: row.appointment.startsAt,
+      endsAt: row.appointment.endsAt,
+      status: row.appointment.status,
+    }),
+  );
+
+  return res.json({ appointments: data });
+}
+
+export async function getDoctorBookedSlots(req: Request, res: Response) {
+  const doctorId = Number(req.query.doctorId);
+
+  if (!Number.isInteger(doctorId) || doctorId <= 0) {
+    return res.status(400).json({ error: "Valid doctorId is required" });
+  }
+
+  const rows = await db
+    .select({ startsAt: appointments.startsAt, endsAt: appointments.endsAt })
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.doctorId, doctorId),
+        eq(appointments.status, "scheduled")
+      )
+    );
+
+  return res.json({
+    slots: rows.map((r) => ({
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+    })),
+  });
 }
 

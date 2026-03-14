@@ -8,6 +8,8 @@ import { eq } from "drizzle-orm";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { appointmentsRouter } from "./routes/appointments";
+import { assessmentsRouter } from "./routes/assessments";
+import { doctorsRouter } from "./routes/doctors";
 import { db } from "./db/client";
 import { users } from "./db/schema";
 
@@ -27,6 +29,8 @@ app.use(cookieParser());
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/appointments", appointmentsRouter);
+app.use("/api/assessments", assessmentsRouter);
+app.use("/api/doctors", doctorsRouter);
 
 async function ensureAdminUser() {
   const adminEmail = "admin@gmail.com";

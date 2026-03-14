@@ -172,9 +172,14 @@ export default function DashboardPage() {
                 Your latest AI-powered assessments and appointments at a glance.
               </p>
             </div>
-            <Button className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold">
-              <span className="text-xs font-medium">+</span>
-              New assessment
+            <Button
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+              asChild
+            >
+              <Link href="/dashboard/assessment">
+                <span className="text-xs font-medium">+</span>
+                New assessment
+              </Link>
             </Button>
           </div>
 

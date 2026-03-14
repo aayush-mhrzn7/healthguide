@@ -9,10 +9,18 @@ import { db } from "../db/client";
 import { users, type DbUser } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
 
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(
+    /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
+    "Password must contain both letters and numbers (alphanumeric only)"
+  );
+
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: passwordSchema,
 });
 
 const loginSchema = z.object({
@@ -30,6 +38,10 @@ const updateProfileSchema = z.object({
   bloodType: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
+  specialty: z.string().optional().nullable(),
+  bio: z.string().optional().nullable(),
+  preferredCommunication: z.string().optional().nullable(),
+  primaryCarePreference: z.string().optional().nullable(),
 });
 
 const ACCESS_TOKEN_EXPIRY = "15m";
@@ -270,6 +282,8 @@ export async function getMe(req: Request, res: Response) {
       name: user.name,
       email: user.email,
       role: user.role,
+      specialty: user.specialty,
+      bio: user.bio,
       dateOfBirth: user.dateOfBirth,
       gender: user.gender,
       bloodType: user.bloodType,
@@ -297,9 +311,43 @@ export async function updateMe(req: Request, res: Response) {
     });
   }
 
-  const { dateOfBirth, gender, bloodType, phone, address } = parseResult.data;
+  const {
+    dateOfBirth,
+    gender,
+    bloodType,
+    phone,
+    address,
+    specialty,
+    bio,
+    preferredCommunication,
+    primaryCarePreference,
+  } = parseResult.data;
 
   const updateValues: Partial<DbUser> = {};
+
+  if (typeof specialty !== "undefined") {
+    updateValues.specialty =
+      specialty && specialty.trim().length > 0 ? specialty.trim() : null;
+  }
+
+  if (typeof bio !== "undefined") {
+    updateValues.bio =
+      bio && bio.trim().length > 0 ? bio.trim() : null;
+  }
+
+  if (typeof preferredCommunication !== "undefined") {
+    updateValues.preferredCommunication =
+      preferredCommunication && preferredCommunication.trim().length > 0
+        ? preferredCommunication.trim()
+        : null;
+  }
+
+  if (typeof primaryCarePreference !== "undefined") {
+    updateValues.primaryCarePreference =
+      primaryCarePreference && primaryCarePreference.trim().length > 0
+        ? primaryCarePreference.trim()
+        : null;
+  }
 
   if (typeof dateOfBirth !== "undefined") {
     updateValues.dateOfBirth =
@@ -344,6 +392,8 @@ export async function updateMe(req: Request, res: Response) {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      specialty: updated.specialty,
+      bio: updated.bio,
       dateOfBirth: updated.dateOfBirth,
       gender: updated.gender,
       bloodType: updated.bloodType,

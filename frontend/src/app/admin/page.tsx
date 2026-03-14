@@ -43,6 +43,7 @@ function AdminDashboardInner() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [specialty, setSpecialty] = useState("general");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -82,12 +83,14 @@ function AdminDashboardInner() {
         name: name.trim(),
         email: email.trim(),
         password: password.trim(),
+        specialty,
       });
 
       setSuccessMessage("Doctor account created.");
       setName("");
       setEmail("");
       setPassword("");
+      setSpecialty("general");
 
       // Refresh stats after creating a doctor
       try {
@@ -253,16 +256,60 @@ function AdminDashboardInner() {
                     htmlFor="doctor-password"
                     className="text-[11px] font-medium text-muted-foreground"
                   >
-                    Temporary password
+                    Temporary password (8+ chars, letters & numbers)
                   </label>
                   <input
                     id="doctor-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="e.g. Doctor123"
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   />
+                  {password && (
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      <span
+                        className={
+                          password.length >= 8
+                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                            : "text-[11px] text-muted-foreground"
+                        }
+                      >
+                        {password.length >= 8 ? "✓" : "○"} 8+ characters
+                      </span>
+                      <span
+                        className={
+                          /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/.test(password)
+                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                            : "text-[11px] text-muted-foreground"
+                        }
+                      >
+                        {/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/.test(password)
+                          ? "✓"
+                          : "○"}{" "}
+                        Letters & numbers
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="grid gap-1">
+                  <label
+                    htmlFor="doctor-specialty"
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
+                    Specialty
+                  </label>
+                  <select
+                    id="doctor-specialty"
+                    value={specialty}
+                    onChange={(e) => setSpecialty(e.target.value)}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="general">General</option>
+                    <option value="respiratory">Respiratory</option>
+                    <option value="allergy">Allergy</option>
+                    <option value="cardiology">Cardiology</option>
+                  </select>
                 </div>
                 {error && (
                   <p className="text-[11px] text-destructive">{error}</p>

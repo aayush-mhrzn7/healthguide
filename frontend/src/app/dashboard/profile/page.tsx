@@ -24,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar, getStoredAvatar } from "@/components/ui/Avatar";
 import { api } from "@/lib/apiClient";
 import {
   Dialog,
@@ -347,7 +348,14 @@ export default function ProfilePage() {
                   Basic details used for your assessments and appointments.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4 text-xs sm:grid-cols-2">
+              <CardContent className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <Avatar
+                  src={getStoredAvatar()}
+                  alt={user?.name ?? "User"}
+                  size="lg"
+                  editable
+                />
+                <div className="grid flex-1 gap-4 text-xs sm:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Full name</p>
                   <p className="text-sm font-semibold text-foreground">
@@ -377,6 +385,7 @@ export default function ProfilePage() {
                       ? "Loading..."
                       : displayOrFallback(user?.bloodType)}
                   </p>
+                </div>
                 </div>
               </CardContent>
             </Card>

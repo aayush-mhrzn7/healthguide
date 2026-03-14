@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -22,54 +23,51 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/apiClient";
+import { format } from "date-fns";
 
-const UPCOMING = [
-  {
-    id: 1,
-    doctor: "Dr. Sarah Miller",
-    specialty: "Internal medicine",
-    date: "Mar 3, 2026",
-    time: "10:30 AM",
-    mode: "In person",
-    location: "Downtown Health Clinic",
-  },
-  {
-    id: 2,
-    doctor: "Dr. James Wilson",
-    specialty: "Cardiologist",
-    date: "Apr 18, 2026",
-    time: "2:00 PM",
-    mode: "Video visit",
-    location: "HealthGuide Virtual",
-  },
-];
-
-const PAST = [
-  {
-    id: 1,
-    doctor: "Dr. Patel",
-    specialty: "Cardiologist",
-    date: "Jan 6, 2026",
-    status: "Completed",
-  },
-  {
-    id: 2,
-    doctor: "Dr. Nguyen",
-    specialty: "Primary care",
-    date: "Nov 12, 2025",
-    status: "Completed",
-  },
-  {
-    id: 3,
-    doctor: "Dr. Lee",
-    specialty: "Allergist",
-    date: "Aug 22, 2025",
-    status: "Completed",
-  },
-];
+type Appointment = {
+  id: number;
+  doctorId: number;
+  doctorName: string;
+  doctorEmail?: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+};
 
 export default function AppointmentsPage() {
   const router = useRouter();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const res = await api.get<{ appointments: Appointment[] }>(
+          "/appointments/user"
+        );
+        if (isMounted) setAppointments(res.data.appointments);
+      } catch {
+        if (isMounted) setAppointments([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const now = new Date();
+  const upcoming = appointments.filter(
+    (a) => new Date(a.startsAt) >= now && a.status === "scheduled"
+  );
+  const past = appointments.filter(
+    (a) => new Date(a.startsAt) < now || a.status !== "scheduled"
+  );
 
   const handleLogout = async () => {
     try {
@@ -149,9 +147,14 @@ export default function AppointmentsPage() {
                 Manage your upcoming visits and review past appointments.
               </p>
             </div>
-            <Button className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold">
-              <span className="text-xs font-medium">+</span>
-              Schedule new appointment
+            <Button
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+              asChild
+            >
+              <Link href="/dashboard/booking">
+                <span className="text-xs font-medium">+</span>
+                Schedule new appointment
+              </Link>
             </Button>
           </div>
         </header>
@@ -168,39 +171,55 @@ export default function AppointmentsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-xs">
-                {UPCOMING.map((appt) => (
-                  <div
-                    key={appt.id}
-                    className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-3"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-foreground">
-                        {appt.doctor}
-                      </p>
-                      <p className="text-[11px] text-primary">
-                        {appt.specialty}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {appt.date} · {appt.time}
-                      </p>
-                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        {appt.location}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        {appt.mode}
-                      </span>
-                      <Button
-                        size="xs"
-                        className="h-7 rounded-full px-3 text-[11px]"
-                      >
-                        View details
-                      </Button>
-                    </div>
+                {isLoading ? (
+                  <div className="py-4 text-center text-muted-foreground">
+                    Loading…
                   </div>
-                ))}
+                ) : upcoming.length === 0 ? (
+                  <div className="py-4 text-center text-muted-foreground">
+                    No upcoming appointments.{" "}
+                    <Link
+                      href="/dashboard/assessment"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Start an assessment
+                    </Link>{" "}
+                    or{" "}
+                    <Link
+                      href="/dashboard/booking"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      book directly
+                    </Link>
+                    .
+                  </div>
+                ) : (
+                  upcoming.map((appt) => (
+                    <div
+                      key={appt.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-3"
+                    >
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-foreground">
+                          {appt.doctorName}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {format(new Date(appt.startsAt), "MMM d, yyyy")} ·{" "}
+                          {format(new Date(appt.startsAt), "h:mm a")}
+                        </p>
+                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          HealthGuide Virtual
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          {appt.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
 
@@ -224,20 +243,17 @@ export default function AppointmentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {PAST.map((appt) => (
+                    {past.map((appt) => (
                       <tr
                         key={appt.id}
                         className="transition-colors hover:bg-muted/40"
                       >
                         <td className="px-4 py-3 text-muted-foreground">
-                          {appt.date}
+                          {format(new Date(appt.startsAt), "MMM d, yyyy")}
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-xs font-semibold text-foreground">
-                            {appt.doctor}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {appt.specialty}
+                            {appt.doctorName}
                           </p>
                         </td>
                         <td className="px-4 py-3">

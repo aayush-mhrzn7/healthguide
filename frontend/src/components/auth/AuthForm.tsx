@@ -7,11 +7,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { CustomInput } from "@/components/form/customInput";
+import { PasswordInput } from "@/components/form/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { api } from "@/lib/apiClient";
 
 type Mode = "login" | "signup";
+
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(
+    /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
+    "Password must contain both letters and numbers (alphanumeric only)"
+  );
 
 const baseSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -21,7 +30,7 @@ const baseSchema = z.object({
 
 const signupSchema = baseSchema.extend({
   name: z.string().min(1, "Name is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: passwordSchema,
 });
 
 const loginSchema = baseSchema.omit({ name: true });
@@ -41,6 +50,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const form = useForm<AuthValues>({
     // @ts-ignore
     resolver: zodResolver(mode === "signup" ? signupSchema : loginSchema),
+    mode: "onChange",
     defaultValues: {
       email: "",
       password: "",
@@ -133,12 +143,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           placeholder="you@example.com"
         />
 
-        <CustomInput<AuthValues>
+        <PasswordInput<AuthValues>
           control={form.control}
           name="password"
           label="Password"
-          type="password"
           placeholder="••••••••"
+          showRealtimeValidation={isSignup}
         />
 
         <Button type="submit" className="mt-2 w-full h-9 text-sm font-semibold">

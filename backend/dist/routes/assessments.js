@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.assessmentsRouter = void 0;
+const express_1 = require("express");
+const assessments_controller_1 = require("../controllers/assessments.controller");
+const verifyJwt_1 = require("../middleware/verifyJwt");
+const assessmentsRouter = (0, express_1.Router)();
+exports.assessmentsRouter = assessmentsRouter;
+assessmentsRouter.post("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.submitAssessment);
+assessmentsRouter.get("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getUserAssessments);

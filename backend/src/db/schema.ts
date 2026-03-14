@@ -5,6 +5,7 @@ import {
   timestamp,
   date,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const USER_ROLES = ["user", "doctor", "admin"] as const;
@@ -17,6 +18,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
 
   role: text("role").notNull().default("user"),
+  specialty: text("specialty"), // For doctors: e.g. "general", "cardiology", "respiratory"
+  bio: text("bio"), // For doctors: short bio/about
 
   dateOfBirth: date("date_of_birth", { mode: "date" }),
   gender: text("gender"),
@@ -26,6 +29,20 @@ export const users = pgTable("users", {
   preferredCommunication: text("preferred_communication"),
   primaryCarePreference: text("primary_care_preference"),
 
+  createdAt: timestamp("created_at", { mode: "date" })
+    .defaultNow()
+    .notNull(),
+});
+
+export const assessments = pgTable("assessments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  answers: jsonb("answers").notNull(), // { [questionId]: boolean }
+  predictedDisease: text("predicted_disease").notNull(),
+  recommendedSpecialty: text("recommended_specialty").notNull(),
+  confidence: text("confidence").notNull(), // "high" | "medium" | "low"
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
     .notNull(),
@@ -51,4 +68,6 @@ export type DbUser = typeof users.$inferSelect;
 export type NewDbUser = typeof users.$inferInsert;
 export type DbAppointment = typeof appointments.$inferSelect;
 export type NewDbAppointment = typeof appointments.$inferInsert;
+export type DbAssessment = typeof assessments.$inferSelect;
+export type NewDbAssessment = typeof assessments.$inferInsert;
 

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.adminRouter = void 0;
+const express_1 = require("express");
+const admin_controller_1 = require("../controllers/admin.controller");
+const verifyJwt_1 = require("../middleware/verifyJwt");
+const adminRouter = (0, express_1.Router)();
+exports.adminRouter = adminRouter;
+adminRouter.post("/doctors", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["admin"]), admin_controller_1.createDoctor);
+adminRouter.get("/stats", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["admin"]), admin_controller_1.getAdminStats);
