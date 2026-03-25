@@ -66,4 +66,3 @@ app.listen(PORT, () => {
     console.error("Failed to ensure admin user", error);
   });
 });
-
