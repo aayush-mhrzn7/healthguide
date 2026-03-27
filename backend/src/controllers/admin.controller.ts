@@ -23,6 +23,7 @@ const createDoctorSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
   password: passwordSchema,
+  clinicLocation: z.string().optional().nullable(),
   specialty: z
     .enum(["general", "respiratory", "allergy", "cardiology"])
     .optional()
@@ -39,7 +40,7 @@ export async function createDoctor(req: Request, res: Response) {
     });
   }
 
-  const { name, email, password, specialty } = parseResult.data;
+  const { name, email, password, specialty, clinicLocation } = parseResult.data;
 
   const existing = await db
     .select()
@@ -61,6 +62,7 @@ export async function createDoctor(req: Request, res: Response) {
       passwordHash,
       role: "doctor",
       specialty,
+      address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
     })
     .returning();
 
@@ -71,6 +73,7 @@ export async function createDoctor(req: Request, res: Response) {
       email: doctor.email,
       role: doctor.role,
       specialty: doctor.specialty,
+      clinicLocation: doctor.address,
     },
   });
 }

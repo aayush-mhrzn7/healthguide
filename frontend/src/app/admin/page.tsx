@@ -38,6 +38,7 @@ function AdminDashboardInner() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [clinicLocation, setClinicLocation] = useState("");
   const [specialty, setSpecialty] = useState("general");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,7 @@ function AdminDashboardInner() {
         name: name.trim(),
         email: email.trim(),
         password: password.trim(),
+        clinicLocation: clinicLocation.trim() || null,
         specialty,
       });
 
@@ -85,6 +87,7 @@ function AdminDashboardInner() {
       setName("");
       setEmail("");
       setPassword("");
+      setClinicLocation("");
       setSpecialty("general");
 
       try {
@@ -293,6 +296,22 @@ function AdminDashboardInner() {
                       </span>
                     </div>
                   )}
+                </div>
+                <div className="grid gap-1">
+                  <label
+                    htmlFor="doctor-clinic-location"
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
+                    Clinic location
+                  </label>
+                  <input
+                    id="doctor-clinic-location"
+                    type="text"
+                    value={clinicLocation}
+                    onChange={(e) => setClinicLocation(e.target.value)}
+                    placeholder="Downtown Health Clinic, NYC"
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
                 </div>
                 <div className="grid gap-1">
                   <label

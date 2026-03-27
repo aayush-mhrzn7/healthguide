@@ -3,10 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import {
-  Bell,
-  CalendarClock,
   Moon,
-  Settings2,
   ShieldCheck,
   SunMedium,
 } from "lucide-react";
@@ -60,32 +57,6 @@ export default function DoctorSettingsPage() {
 
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <Card className="border-border/80 bg-card/90 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <Bell className="h-4 w-4" />
-                  Notifications
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  When to receive alerts.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex items-center justify-between gap-4 rounded-lg bg-background/80 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-semibold">Appointment reminders</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Alerts before upcoming visits.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">

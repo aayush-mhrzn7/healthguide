@@ -46,8 +46,6 @@ type ProfileUser = {
   bloodType: string | null;
   phone: string | null;
   address: string | null;
-  preferredCommunication: string | null;
-  primaryCarePreference: string | null;
 };
 
 export default function ProfilePage() {
@@ -167,7 +165,7 @@ export default function ProfilePage() {
                 Profile
               </h1>
               <p className="text-xs text-muted-foreground sm:text-sm">
-                Manage your personal details and health preferences.
+                Manage your personal details.
               </p>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -381,38 +379,6 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/80 bg-card/90 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">
-                  Health preferences
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  How HealthGuide personalizes your recommendations.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 text-xs sm:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-[11px] text-muted-foreground">
-                    Preferred communication
-                  </p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {isLoading
-                      ? "Loading..."
-                      : displayOrFallback(user?.preferredCommunication)}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-muted-foreground">
-                    Primary care preference
-                  </p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {isLoading
-                      ? "Loading..."
-                      : displayOrFallback(user?.primaryCarePreference)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </section>
       </main>
