@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, getStoredAvatar } from "@/components/ui/Avatar";
 import { api } from "@/lib/apiClient";
+import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import {
   Dialog,
   DialogContent,
@@ -159,52 +160,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/80 md:flex">
-        <Link href="/" className="flex items-center gap-3 px-6 py-6">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <HeartPulse className="h-5 w-5" />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-semibold leading-none">HealthGuide</p>
-            <p className="text-xs text-muted-foreground">AI Health Dashboard</p>
-          </div>
-        </Link>
-        <nav className="flex flex-1 flex-col gap-1 px-3 pb-4 text-sm">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <CalendarClock className="h-4 w-4" />
-            <span>My assessments</span>
-          </Link>
-          <Link
-            href="/dashboard/appointments"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <BadgeCheck className="h-4 w-4" />
-            <span>My appointments</span>
-          </Link>
-          <div className="flex items-center gap-3 rounded-lg border-l-4 border-primary bg-primary/10 px-3 py-2.5 text-primary">
-            <User2 className="h-4 w-4" />
-            <span>Profile</span>
-          </div>
-          <Link
-            href="/dashboard/settings"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Settings2 className="h-4 w-4" />
-            <span>Settings</span>
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </button>
-        </nav>
-      </aside>
+      <RoleSidebar role="user" onLogout={handleLogout} />
 
       <main className="flex min-h-full flex-1 flex-col overflow-y-auto">
         <header className="px-6 pb-4 pt-8 lg:px-8">
