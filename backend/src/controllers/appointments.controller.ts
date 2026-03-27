@@ -13,8 +13,8 @@ import type { AuthRequest } from "../middleware/verifyJwt";
 
 const createAppointmentSchema = z.object({
   doctorId: z.number().int().positive(),
-  startsAt: z.string().datetime(),
-  endsAt: z.string().datetime(),
+  startsAt: z.string().min(1),
+  endsAt: z.string().min(1),
 });
 
 export async function createAppointment(req: Request, res: Response) {
