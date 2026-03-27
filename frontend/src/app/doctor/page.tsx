@@ -10,7 +10,7 @@ import {
 } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 
-import { DoctorSidebar } from "@/components/doctor/DoctorSidebar";
+import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/apiClient";
@@ -60,7 +60,8 @@ function DoctorDashboardInner() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8000/api/auth/logout", {
+      const _apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ?? "http://localhost:8000";
+      await fetch(`${_apiBase}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -129,7 +130,7 @@ function DoctorDashboardInner() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
-      <DoctorSidebar onLogout={handleLogout} />
+      <RoleSidebar role="doctor" onLogout={handleLogout} />
 
       <main className="flex min-h-full flex-1 flex-col overflow-y-auto">
         <header className="px-6 pb-4 pt-8 lg:px-8">
