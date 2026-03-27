@@ -1,4 +1,3 @@
-"""Prediction, feature, and disease routes."""
 
 from __future__ import annotations
 
@@ -63,5 +62,4 @@ def list_diseases(predictor: DiseasePredictor = Depends(get_predictor)) -> Disea
 
 @router.get("/predict/sample")
 def predict_sample(predictor: DiseasePredictor = Depends(get_predictor)) -> dict:
-    """Returns a ready-to-use JSON body for POST /api/v1/predict with all symptoms set to 0."""
     return {"symptoms": {k: 0 for k in predictor.feature_names}, "top_n": 3}

@@ -87,12 +87,10 @@ function AdminDashboardInner() {
       setPassword("");
       setSpecialty("general");
 
-      // Refresh stats after creating a doctor
       try {
         const response = await api.get<{ stats: AdminStats }>("/admin/stats");
         setStats(response.data.stats);
       } catch {
-        // ignore
       }
     } catch (err) {
       const msg =
@@ -114,7 +112,6 @@ function AdminDashboardInner() {
         credentials: "include",
       });
     } catch {
-      // ignore
     }
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("accessToken");

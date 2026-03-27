@@ -20,11 +20,6 @@ const submitAssessmentSchema = z.object({
 
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
 
-/**
- * Builds the full 132-feature payload for the ML model.
- * Quiz answers are mapped to their corresponding ML feature names;
- * all other features default to 0.
- */
 function buildMlPayload(
   answers: Record<string, boolean>,
   allFeatureNames: string[]
@@ -60,10 +55,6 @@ type MlFeaturesResponse = {
   count: number;
 };
 
-/**
- * Calls the Python ML API to predict a disease from symptom answers.
- * Falls back to the rule-based predictor if the ML service is unavailable.
- */
 async function predictWithMlApi(answers: Record<string, boolean>): Promise<{
   disease: string;
   specialty: string;
@@ -107,9 +98,6 @@ async function predictWithMlApi(answers: Record<string, boolean>): Promise<{
   }
 }
 
-/**
- * Rule-based fallback predictor used when the ML service is unavailable.
- */
 function predictDiseaseRuleBased(answers: Record<string, boolean>): {
   disease: string;
   specialty: string;
@@ -207,12 +195,6 @@ export async function getUserAssessments(req: Request, res: Response) {
   });
 }
 
-/**
- * Returns a summary for the user dashboard:
- * - lastCheckup: most recent assessment
- * - nextAppointment: nearest upcoming scheduled appointment
- * - totalAssessments: count of all assessments
- */
 export async function getDashboardSummary(req: Request, res: Response) {
   const { authUser } = req as AuthRequest;
 

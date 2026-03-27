@@ -22,11 +22,6 @@ const sizeClasses = {
   lg: "size-24",
 };
 
-/**
- * Avatar component with local image upload.
- * Converts selected image to base64 data URL and stores in localStorage.
- * No server upload - purely client-side.
- */
 export function Avatar({
   src,
   alt = "Profile",

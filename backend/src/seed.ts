@@ -1,7 +1,3 @@
-/**
- * Seed script — drops all data and re-seeds from users.json.
- * Run with: npx ts-node --transpile-only src/seed.ts
- */
 
 import bcrypt from "bcryptjs";
 import "dotenv/config";
@@ -16,14 +12,12 @@ async function seed() {
   await db.delete(assessments);
   await db.delete(users);
 
-  // Reset sequences so IDs always start from 1
   const { sql } = await import("drizzle-orm");
   await db.execute(sql`ALTER SEQUENCE users_id_seq RESTART WITH 1`);
   await db.execute(sql`ALTER SEQUENCE assessments_id_seq RESTART WITH 1`);
   await db.execute(sql`ALTER SEQUENCE appointments_id_seq RESTART WITH 1`);
   console.log("   Done.\n");
 
-  // ── Admin ────────────────────────────────────────────────────────────────
   console.log(`👤  Seeding admin: ${seedData.admin.email}`);
   await db.insert(users).values({
     name: "Admin",
@@ -32,7 +26,6 @@ async function seed() {
     role: "admin",
   });
 
-  // ── Regular user ─────────────────────────────────────────────────────────
   console.log(`👤  Seeding user:  ${seedData.user.email}`);
   await db.insert(users).values({
     name: "Aayush",
@@ -41,7 +34,6 @@ async function seed() {
     role: "user",
   });
 
-  // ── Doctors ──────────────────────────────────────────────────────────────
   for (const doc of seedData.doctors) {
     console.log(`🩺  Seeding doctor: ${doc.email} (${doc.specialty})`);
     await db.insert(users).values({

@@ -95,7 +95,6 @@ export default function AssessmentPage() {
         credentials: "include",
       });
     } catch {
-      // ignore
     }
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("accessToken");

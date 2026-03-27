@@ -1,4 +1,3 @@
-"""Load the trained model from disk and run inference."""
 
 from __future__ import annotations
 

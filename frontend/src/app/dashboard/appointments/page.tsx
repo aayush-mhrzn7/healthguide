@@ -74,7 +74,6 @@ export default function AppointmentsPage() {
         credentials: "include",
       });
     } catch {
-      // ignore network errors on logout
     }
 
     if (typeof window !== "undefined") {

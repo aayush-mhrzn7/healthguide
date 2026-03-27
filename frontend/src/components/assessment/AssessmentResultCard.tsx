@@ -18,9 +18,6 @@ export type AssessmentResultCardProps = {
   onBookDoctor: () => void;
 };
 
-/**
- * Single Responsibility: Displays assessment result and CTA to book a doctor.
- */
 export function AssessmentResultCard({
   predictedDisease,
   recommendedSpecialty,

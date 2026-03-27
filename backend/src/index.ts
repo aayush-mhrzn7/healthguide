@@ -57,12 +57,9 @@ async function ensureAdminUser() {
 const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
   console.log(`Backend listening on http://localhost:${PORT}`);
 
-  // Seed default admin user if not present
   void ensureAdminUser().catch((error) => {
-    // eslint-disable-next-line no-console
     console.error("Failed to ensure admin user", error);
   });
 });

@@ -1,4 +1,3 @@
-"""Data loading and feature extraction for the symptom → disease CSV dataset."""
 
 from __future__ import annotations
 
@@ -14,7 +13,6 @@ def load_raw_training_csv(path: str | Path) -> pd.DataFrame:
     path = Path(path)
     df = pd.read_csv(path)
     df.columns = [str(c).strip() for c in df.columns]
-    # The source CSV has a trailing comma that creates a spurious empty column
     df = df.drop(columns=[c for c in df.columns if c.startswith("Unnamed")], errors="ignore")
     return df
 

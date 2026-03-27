@@ -10,7 +10,6 @@ import { verifyJwt, requireRole } from "../middleware/verifyJwt";
 
 const appointmentsRouter = Router();
 
-// User creates appointment
 appointmentsRouter.post(
   "/",
   verifyJwt,
@@ -18,7 +17,6 @@ appointmentsRouter.post(
   createAppointment
 );
 
-// User views their appointments
 appointmentsRouter.get(
   "/user",
   verifyJwt,
@@ -26,7 +24,6 @@ appointmentsRouter.get(
   getUserAppointments
 );
 
-// Doctor views their appointments (for calendar)
 appointmentsRouter.get(
   "/doctor",
   verifyJwt,
@@ -34,7 +31,6 @@ appointmentsRouter.get(
   getDoctorAppointments
 );
 
-// User fetches booked slots for a doctor (to grey out unavailable times)
 appointmentsRouter.get(
   "/booked-slots",
   verifyJwt,

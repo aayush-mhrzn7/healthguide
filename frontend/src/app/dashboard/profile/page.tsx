@@ -71,7 +71,6 @@ export default function ProfilePage() {
         if (!isMounted) return;
         setUser(response.data.user);
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error("Failed to load profile", error);
       } finally {
         if (isMounted) {
@@ -122,7 +121,6 @@ export default function ProfilePage() {
       setUser(response.data.user);
       setIsDialogOpen(false);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to save profile", error);
     } finally {
       setIsSaving(false);
@@ -133,7 +131,6 @@ export default function ProfilePage() {
     try {
       await api.post("/auth/logout");
     } catch {
-      // ignore network errors on logout
     }
 
     if (typeof window !== "undefined") {

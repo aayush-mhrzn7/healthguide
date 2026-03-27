@@ -17,9 +17,6 @@ export type QuizQuestionCardProps = {
   disabled?: boolean;
 };
 
-/**
- * Single Responsibility: Renders one quiz question as a card with Yes/No options.
- */
 export function QuizQuestionCard({
   question,
   questionNumber,

@@ -1,10 +1,3 @@
-/**
- * Quiz constants for the health assessment.
- * Used by both frontend (display) and backend (disease prediction).
- *
- * The number of questions shown is controlled by NEXT_PUBLIC_QUIZ_QUESTION_COUNT
- * in your .env.local file. Defaults to 12.
- */
 
 const ALL_QUIZ_QUESTIONS = [
   {
@@ -78,11 +71,6 @@ export const QUIZ_QUESTIONS = ALL_QUIZ_QUESTIONS.slice(0, QUIZ_QUESTION_COUNT);
 
 export type SymptomKey = (typeof ALL_QUIZ_QUESTIONS)[number]["symptomKey"];
 
-/**
- * Maps symptom keys (from answers) to disease predictions.
- * Each disease has required symptoms and optional supporting symptoms.
- * First matching disease wins (order matters for tie-breaking).
- */
 export const DISEASE_SYMPTOM_MAP: Array<{
   disease: string;
   specialty: string;
@@ -154,9 +142,6 @@ export const DISEASE_SYMPTOM_MAP: Array<{
   },
 ];
 
-/**
- * Fallback when no disease matches.
- */
 export const DEFAULT_RECOMMENDATION = {
   disease: "General wellness check recommended",
   specialty: "general",

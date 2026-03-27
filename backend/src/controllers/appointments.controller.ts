@@ -35,7 +35,6 @@ export async function createAppointment(req: Request, res: Response) {
 
   const { doctorId, startsAt, endsAt } = parseResult.data;
 
-  // Basic check that doctor exists and has doctor role
   const doctor = await db
     .select()
     .from(users)

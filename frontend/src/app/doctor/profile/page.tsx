@@ -89,7 +89,6 @@ export default function DoctorProfilePage() {
       setUser(res.data.user);
       setIsDialogOpen(false);
     } catch {
-      // ignore
     } finally {
       setIsSaving(false);
     }
@@ -103,7 +102,6 @@ export default function DoctorProfilePage() {
         credentials: "include",
       });
     } catch {
-      // ignore
     }
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("accessToken");

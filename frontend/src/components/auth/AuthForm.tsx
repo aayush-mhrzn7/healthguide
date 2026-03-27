@@ -48,7 +48,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
 
   const form = useForm<AuthValues>({
-    // @ts-ignore
     resolver: zodResolver(mode === "signup" ? signupSchema : loginSchema),
     mode: "onChange",
     defaultValues: {
@@ -81,7 +80,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
         router.push("/dashboard");
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Auth error", error);
 
       const fallbackMessage =

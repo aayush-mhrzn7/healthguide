@@ -70,7 +70,6 @@ export default function DashboardPage() {
         { method: "POST", credentials: "include" },
       );
     } catch {
-      // ignore network errors on logout
     }
 
     if (typeof window !== "undefined") {

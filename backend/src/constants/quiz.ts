@@ -1,11 +1,3 @@
-/**
- * Quiz constants for disease prediction (server-side).
- * Mirrors frontend constants - used for assessment submission.
- *
- * QUIZ_QUESTION_COUNT is controlled by the QUIZ_QUESTION_COUNT env var (default 12).
- * The ML model uses 132 binary features; SYMPTOM_TO_ML_FEATURE maps each quiz
- * symptom key to the corresponding feature name(s) in the trained model.
- */
 
 export type SymptomKey =
   | "fever"
@@ -46,10 +38,6 @@ export const QUIZ_QUESTION_IDS = ALL_QUIZ_QUESTION_IDS.slice(
   QUIZ_QUESTION_COUNT
 );
 
-/**
- * Maps each quiz symptom key to the ML model feature name(s).
- * When a user answers "yes" to a symptom, all mapped ML features are set to 1.
- */
 export const SYMPTOM_TO_ML_FEATURES: Record<SymptomKey, string[]> = {
   fever: ["high_fever", "mild_fever"],
   cough: ["cough"],
@@ -142,9 +130,6 @@ export const DEFAULT_RECOMMENDATION = {
   confidence: "low" as const,
 };
 
-/**
- * Maps a predicted disease name from the ML model to a medical specialty.
- */
 export const DISEASE_TO_SPECIALTY: Record<string, string> = {
   "(vertigo) Paroymsal  Positional Vertigo": "general",
   AIDS: "general",

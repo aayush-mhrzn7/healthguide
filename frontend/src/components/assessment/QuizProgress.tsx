@@ -5,9 +5,6 @@ export type QuizProgressProps = {
   total: number;
 };
 
-/**
- * Single Responsibility: Displays quiz progress indicator.
- */
 export function QuizProgress({ current, total }: QuizProgressProps) {
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
 

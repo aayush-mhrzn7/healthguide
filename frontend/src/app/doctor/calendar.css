@@ -1,11 +1,8 @@
-/* react-big-calendar overrides for dark mode and better toolbar styling */
 
-/* Base - ensure calendar inherits theme colors */
 .rbc-calendar {
   color: var(--foreground);
 }
 
-/* Toolbar - visible and styled for both themes */
 .rbc-toolbar {
   gap: 0.5rem;
   margin-bottom: 1rem;
@@ -49,13 +46,11 @@
   color: var(--foreground);
 }
 
-/* Headers */
 .rbc-header {
   color: var(--foreground);
   border-color: var(--border) !important;
 }
 
-/* Off-range cells (days from other months) */
 .rbc-off-range {
   color: var(--muted-foreground);
 }
@@ -64,12 +59,10 @@
   background-color: var(--muted);
 }
 
-/* Today highlight */
 .rbc-today {
   background-color: var(--muted);
 }
 
-/* Time slots and rows */
 .rbc-time-view .rbc-header,
 .rbc-time-header-content,
 .rbc-day-slot .rbc-time-slot {
@@ -80,7 +73,6 @@
   border-color: var(--border);
 }
 
-/* Events */
 .rbc-event,
 .rbc-day-slot .rbc-background-event {
   background-color: var(--primary);
@@ -91,7 +83,6 @@
   opacity: 0.9;
 }
 
-/* Month view date cells */
 .rbc-month-view {
   border-color: var(--border);
 }
@@ -108,7 +99,6 @@
   font-weight: 600;
 }
 
-/* Agenda view */
 .rbc-agenda-view {
   border-color: var(--border);
 }

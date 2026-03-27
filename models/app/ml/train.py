@@ -1,9 +1,3 @@
-"""
-Train a RandomForestClassifier and persist artifacts to models_saved/.
-
-Run from repository root:
-    python app/ml/train.py
-"""
 
 from __future__ import annotations
 
@@ -19,7 +13,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
-# Allow `python app/ml/train.py` without installing as a package
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))

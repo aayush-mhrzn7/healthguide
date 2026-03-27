@@ -36,8 +36,6 @@ export default function SettingsPage() {
         credentials: "include",
       });
     } catch {
-      // ignore network errors on logout
-      // eslint-disable-next-line no-console
     }
 
     if (typeof window !== "undefined") {

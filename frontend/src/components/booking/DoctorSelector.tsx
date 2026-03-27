@@ -25,9 +25,6 @@ export type DoctorSelectorProps = {
   isLoading?: boolean;
 };
 
-/**
- * Single Responsibility: Renders list of doctors for selection.
- */
 export function DoctorSelector({
   doctors,
   selectedDoctorId,

@@ -47,10 +47,6 @@ export type TimeSlotPickerProps = {
   bookedSlots?: BookedSlot[];
 };
 
-/**
- * Single Responsibility: Renders available time slots for the next 7 days.
- * Greyed-out slots are already booked by other users.
- */
 export function TimeSlotPicker({
   selectedSlot,
   onSelect,
