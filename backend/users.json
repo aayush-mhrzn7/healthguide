@@ -1,0 +1,49 @@
+{
+  "admin": {
+    "email": "admin@gmail.com",
+    "password": "Admin@123",
+    "role": "admin"
+  },
+  "user": {
+    "email": "aayush@gmail.com",
+    "password": "Admin@123",
+    "role": "user"
+  },
+  "doctors": [
+    {
+      "name": "Dr. Sarah Mitchell",
+      "email": "sarah.mitchell@healthguide.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "general"
+    },
+    {
+      "name": "Dr. James Patel",
+      "email": "james.patel@healthguide.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "cardiology"
+    },
+    {
+      "name": "Dr. Emily Nguyen",
+      "email": "emily.nguyen@healthguide.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "respiratory"
+    },
+    {
+      "name": "Dr. Omar Hassan",
+      "email": "omar.hassan@healthguide.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "allergy"
+    },
+    {
+      "name": "Dr. Priya Sharma",
+      "email": "priya.sharma@healthguide.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "general"
+    }
+  ]
+}
