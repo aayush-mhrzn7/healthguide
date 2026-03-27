@@ -1,15 +1,16 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-
 import { eq, desc } from "drizzle-orm";
 
 import { db } from "../db/client";
-import { assessments } from "../db/schema";
+import { assessments, appointments, users } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
 import {
   DISEASE_SYMPTOM_MAP,
   DEFAULT_RECOMMENDATION,
   QUIZ_QUESTION_IDS,
+  SYMPTOM_TO_ML_FEATURES,
+  DISEASE_TO_SPECIALTY,
   type SymptomKey,
 } from "../constants/quiz";
 
@@ -17,7 +18,99 @@ const submitAssessmentSchema = z.object({
   answers: z.record(z.string(), z.boolean()),
 });
 
-function predictDisease(answers: Record<string, boolean>): {
+const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
+
+/**
+ * Builds the full 132-feature payload for the ML model.
+ * Quiz answers are mapped to their corresponding ML feature names;
+ * all other features default to 0.
+ */
+function buildMlPayload(
+  answers: Record<string, boolean>,
+  allFeatureNames: string[]
+): Record<string, number> {
+  const activeFeatures = new Set<string>();
+
+  for (const [symptomKey, answered] of Object.entries(answers)) {
+    if (answered === true) {
+      const mlFeatures = SYMPTOM_TO_ML_FEATURES[symptomKey as SymptomKey];
+      if (mlFeatures) {
+        for (const f of mlFeatures) {
+          activeFeatures.add(f);
+        }
+      }
+    }
+  }
+
+  const payload: Record<string, number> = {};
+  for (const feature of allFeatureNames) {
+    payload[feature] = activeFeatures.has(feature) ? 1 : 0;
+  }
+  return payload;
+}
+
+type MlPredictResponse = {
+  predicted_disease: string;
+  confidence: number;
+  top_diseases: { disease: string; confidence: number }[];
+};
+
+type MlFeaturesResponse = {
+  features: string[];
+  count: number;
+};
+
+/**
+ * Calls the Python ML API to predict a disease from symptom answers.
+ * Falls back to the rule-based predictor if the ML service is unavailable.
+ */
+async function predictWithMlApi(answers: Record<string, boolean>): Promise<{
+  disease: string;
+  specialty: string;
+  confidence: "high" | "medium" | "low";
+}> {
+  try {
+    const featuresRes = await fetch(`${ML_API_URL}/api/v1/features`);
+    if (!featuresRes.ok) throw new Error("ML features endpoint failed");
+
+    const featuresData = (await featuresRes.json()) as MlFeaturesResponse;
+    const payload = buildMlPayload(answers, featuresData.features);
+
+    const predictRes = await fetch(`${ML_API_URL}/api/v1/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symptoms: payload, top_n: 3 }),
+    });
+
+    if (!predictRes.ok) throw new Error("ML predict endpoint failed");
+
+    const prediction = (await predictRes.json()) as MlPredictResponse;
+
+    const confidenceScore = prediction.confidence;
+    const confidenceLevel: "high" | "medium" | "low" =
+      confidenceScore >= 0.7
+        ? "high"
+        : confidenceScore >= 0.4
+          ? "medium"
+          : "low";
+
+    const specialty =
+      DISEASE_TO_SPECIALTY[prediction.predicted_disease] ?? "general";
+
+    return {
+      disease: prediction.predicted_disease,
+      specialty,
+      confidence: confidenceLevel,
+    };
+  } catch {
+    return predictDiseaseRuleBased(answers);
+  }
+}
+
+/**
+ * Rule-based fallback predictor used when the ML service is unavailable.
+ */
+function predictDiseaseRuleBased(answers: Record<string, boolean>): {
   disease: string;
   specialty: string;
   confidence: "high" | "medium" | "low";
@@ -64,7 +157,7 @@ export async function submitAssessment(req: Request, res: Response) {
   }
 
   const { answers } = parseResult.data;
-  const prediction = predictDisease(answers);
+  const prediction = await predictWithMlApi(answers);
 
   const [created] = await db
     .insert(assessments)
@@ -109,6 +202,77 @@ export async function getUserAssessments(req: Request, res: Response) {
       recommendedSpecialty: a.recommendedSpecialty,
       confidence: a.confidence,
       createdAt: a.createdAt,
+      answers: a.answers,
     })),
+  });
+}
+
+/**
+ * Returns a summary for the user dashboard:
+ * - lastCheckup: most recent assessment
+ * - nextAppointment: nearest upcoming scheduled appointment
+ * - totalAssessments: count of all assessments
+ */
+export async function getDashboardSummary(req: Request, res: Response) {
+  const { authUser } = req as AuthRequest;
+
+  if (!authUser) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const [lastCheckupRow] = await db
+    .select()
+    .from(assessments)
+    .where(eq(assessments.userId, authUser.id))
+    .orderBy(desc(assessments.createdAt))
+    .limit(1);
+
+  const now = new Date();
+
+  const upcomingRows = await db
+    .select({
+      appointment: appointments,
+      doctor: users,
+    })
+    .from(appointments)
+    .leftJoin(users, eq(users.id, appointments.doctorId))
+    .where(
+      eq(appointments.patientId, authUser.id)
+    )
+    .orderBy(appointments.startsAt)
+    .limit(10);
+
+  const nextAppointment = upcomingRows
+    .filter(
+      (r) =>
+        new Date(r.appointment.startsAt) >= now &&
+        r.appointment.status === "scheduled"
+    )
+    .map((r) => ({
+      id: r.appointment.id,
+      doctorName: r.doctor?.name ?? "Unknown doctor",
+      doctorSpecialty: r.doctor?.specialty ?? null,
+      startsAt: r.appointment.startsAt,
+      endsAt: r.appointment.endsAt,
+      status: r.appointment.status,
+    }))[0] ?? null;
+
+  const allAssessmentRows = await db
+    .select({ id: assessments.id })
+    .from(assessments)
+    .where(eq(assessments.userId, authUser.id));
+
+  return res.json({
+    lastCheckup: lastCheckupRow
+      ? {
+          id: lastCheckupRow.id,
+          predictedDisease: lastCheckupRow.predictedDisease,
+          recommendedSpecialty: lastCheckupRow.recommendedSpecialty,
+          confidence: lastCheckupRow.confidence,
+          createdAt: lastCheckupRow.createdAt,
+        }
+      : null,
+    nextAppointment,
+    totalAssessments: allAssessmentRows.length,
   });
 }
