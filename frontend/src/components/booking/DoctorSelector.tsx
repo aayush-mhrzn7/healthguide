@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type Doctor = {
   id: number;
@@ -37,15 +38,24 @@ export function DoctorSelector({
     return (
       <Card className="border-border/80 bg-card/90 shadow-xs">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Stethoscope className="h-4 w-4" />
             Select a doctor
           </CardTitle>
           <CardDescription className="text-xs">
-            Loading doctors…
+            Choose a doctor based on your assessment recommendation.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        <CardContent className="space-y-2">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="rounded-lg border border-border/60 bg-background/60 px-4 py-3"
+            >
+              <Skeleton className="mb-2 h-4 w-40" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          ))}
         </CardContent>
       </Card>
     );
