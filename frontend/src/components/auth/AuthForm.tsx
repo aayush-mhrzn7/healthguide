@@ -78,7 +78,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       } else if (role === "doctor") {
         router.push("/doctor");
       } else {
-        router.push("/dashboard/profile");
+        router.push("/dashboard");
       }
     } catch (error) {
       // eslint-disable-next-line no-console

@@ -1,13 +1,26 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 
 export function Header() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = window.localStorage.getItem("accessToken");
+    const user = window.localStorage.getItem("user");
+    setIsLoggedIn(!!token && !!user);
+  }, []);
+
+  const logoHref = isLoggedIn ? "/dashboard" : "/";
+
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md border-border">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 lg:px-8">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href={logoHref} className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Brain />
           </div>
@@ -49,24 +62,36 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link href={"/login"}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden text-xs font-medium md:inline-flex"
-            >
-              Log in
-            </Button>
-          </Link>
-          <Link href={"/signup"}>
-            {" "}
-            <Button
-              size="sm"
-              className="rounded-full px-5 text-xs font-semibold shadow-xs hover:shadow-sm transition-shadow"
-            >
-              Get started
-            </Button>
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/dashboard">
+              <Button
+                size="sm"
+                className="rounded-full px-5 text-xs font-semibold shadow-xs hover:shadow-sm transition-shadow"
+              >
+                Go to dashboard
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden text-xs font-medium md:inline-flex"
+                >
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button
+                  size="sm"
+                  className="rounded-full px-5 text-xs font-semibold shadow-xs hover:shadow-sm transition-shadow"
+                >
+                  Get started
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
