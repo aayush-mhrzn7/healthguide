@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  Activity,
-  HeartPulse,
-  LogOut,
-  Plus,
-  Settings2,
-  Users,
-  UserCog,
-} from "lucide-react";
+import { Activity, Plus, UserCog, Users } from "lucide-react";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
@@ -22,6 +13,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/apiClient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { RoleSidebar } from "@/components/layout/RoleSidebar";
 
 type AdminStats = {
   totalUsers: number;
@@ -38,6 +32,7 @@ export default function AdminDashboardPage() {
 }
 
 function AdminDashboardInner() {
+  const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [name, setName] = useState("");
@@ -109,32 +104,28 @@ function AdminDashboardInner() {
     }
   };
 
+  const handleLogout = async () => {
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ??
+      "http://localhost:8000";
+    try {
+      await fetch(`${apiBase}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("accessToken");
+      window.localStorage.removeItem("user");
+    }
+    router.push("/login");
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/80 md:flex">
-        <Link href="/" className="flex items-center gap-3 px-6 py-6">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <HeartPulse className="h-5 w-5" />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-semibold leading-none">HealthGuide</p>
-            <p className="text-xs text-muted-foreground">Admin console</p>
-          </div>
-        </Link>
-        <nav className="flex flex-1 flex-col gap-1 px-3 pb-4 text-sm">
-          <div className="flex items-center gap-3 rounded-lg border-l-4 border-primary bg-primary/10 px-3 py-2.5 text-primary">
-            <Settings2 className="h-4 w-4" />
-            <span>Overview</span>
-          </div>
-          <Link
-            href="/doctor"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <UserCog className="h-4 w-4" />
-            <span>Doctor schedule</span>
-          </Link>
-        </nav>
-      </aside>
+      <RoleSidebar role="admin" onLogout={handleLogout} />
 
       <main className="flex min-h-full flex-1 flex-col overflow-y-auto">
         <header className="px-6 pb-4 pt-8 lg:px-8">
@@ -147,20 +138,6 @@ function AdminDashboardInner() {
                 Create doctor accounts and view key usage metrics.
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold"
-              asChild
-            >
-              <a
-                href="mailto:support@example.com"
-                className="inline-flex items-center gap-2"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign out of admin
-              </a>
-            </Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -173,7 +150,11 @@ function AdminDashboardInner() {
               </CardHeader>
               <CardContent className="pb-4">
                 <p className="text-2xl font-semibold">
-                  {isLoadingStats ? "—" : stats?.totalUsers ?? 0}
+                  {isLoadingStats ? (
+                    <Skeleton className="h-7 w-10" />
+                  ) : (
+                    (stats?.totalUsers ?? 0)
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -186,7 +167,11 @@ function AdminDashboardInner() {
               </CardHeader>
               <CardContent className="pb-4">
                 <p className="text-2xl font-semibold">
-                  {isLoadingStats ? "—" : stats?.totalDoctors ?? 0}
+                  {isLoadingStats ? (
+                    <Skeleton className="h-7 w-10" />
+                  ) : (
+                    (stats?.totalDoctors ?? 0)
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -199,7 +184,11 @@ function AdminDashboardInner() {
               </CardHeader>
               <CardContent className="pb-4">
                 <p className="text-2xl font-semibold">
-                  {isLoadingStats ? "—" : stats?.totalAppointments ?? 0}
+                  {isLoadingStats ? (
+                    <Skeleton className="h-7 w-10" />
+                  ) : (
+                    (stats?.totalAppointments ?? 0)
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -256,14 +245,14 @@ function AdminDashboardInner() {
                     htmlFor="doctor-password"
                     className="text-[11px] font-medium text-muted-foreground"
                   >
-                    Temporary password (8+ chars, letters & numbers)
+                    Temporary password (8+ chars, letters &amp; numbers)
                   </label>
                   <input
                     id="doctor-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="e.g. Doctor123"
+                    placeholder="e.g. Doctor123!"
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   />
                   {password && (
@@ -279,15 +268,31 @@ function AdminDashboardInner() {
                       </span>
                       <span
                         className={
-                          /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/.test(password)
+                          /(?=.*[A-Za-z])/.test(password)
                             ? "text-[11px] text-emerald-600 dark:text-emerald-400"
                             : "text-[11px] text-muted-foreground"
                         }
                       >
-                        {/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/.test(password)
-                          ? "✓"
-                          : "○"}{" "}
-                        Letters & numbers
+                        {/(?=.*[A-Za-z])/.test(password) ? "✓" : "○"} Letter
+                      </span>
+                      <span
+                        className={
+                          /(?=.*\d)/.test(password)
+                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                            : "text-[11px] text-muted-foreground"
+                        }
+                      >
+                        {/(?=.*\d)/.test(password) ? "✓" : "○"} Number
+                      </span>
+                      <span
+                        className={
+                          /(?=.*[^A-Za-z\d])/.test(password)
+                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                            : "text-[11px] text-muted-foreground"
+                        }
+                      >
+                        {/(?=.*[^A-Za-z\d])/.test(password) ? "✓" : "○"} Symbol
+                        (optional)
                       </span>
                     </div>
                   )}
@@ -339,4 +344,3 @@ function AdminDashboardInner() {
     </div>
   );
 }
-
