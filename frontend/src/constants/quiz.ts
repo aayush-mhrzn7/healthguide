@@ -1,9 +1,12 @@
 /**
  * Quiz constants for the health assessment.
  * Used by both frontend (display) and backend (disease prediction).
+ *
+ * The number of questions shown is controlled by NEXT_PUBLIC_QUIZ_QUESTION_COUNT
+ * in your .env.local file. Defaults to 12.
  */
 
-export const QUIZ_QUESTIONS = [
+const ALL_QUIZ_QUESTIONS = [
   {
     id: "fever",
     text: "Do you have a fever?",
@@ -66,7 +69,14 @@ export const QUIZ_QUESTIONS = [
   },
 ] as const;
 
-export type SymptomKey = (typeof QUIZ_QUESTIONS)[number]["symptomKey"];
+const QUIZ_QUESTION_COUNT = Math.min(
+  Number(process.env.NEXT_PUBLIC_QUIZ_QUESTION_COUNT ?? 12) || 12,
+  ALL_QUIZ_QUESTIONS.length
+);
+
+export const QUIZ_QUESTIONS = ALL_QUIZ_QUESTIONS.slice(0, QUIZ_QUESTION_COUNT);
+
+export type SymptomKey = (typeof ALL_QUIZ_QUESTIONS)[number]["symptomKey"];
 
 /**
  * Maps symptom keys (from answers) to disease predictions.
