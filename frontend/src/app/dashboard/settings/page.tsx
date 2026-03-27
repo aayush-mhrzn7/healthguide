@@ -3,16 +3,9 @@
 import Link from "next/link";
 
 import {
-  BadgeCheck,
-  Bell,
-  CalendarClock,
-  HeartPulse,
   Moon,
   Settings2,
-  ShieldCheck,
   SunMedium,
-  LogOut,
-  User2,
 } from "lucide-react";
 
 import { useTheme } from "next-themes";
@@ -27,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useRouter } from "next/navigation";
+import { RoleSidebar } from "@/components/layout/RoleSidebar";
 
 export default function SettingsPage() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -36,7 +30,8 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8000/api/auth/logout", {
+      const _apiBase = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ?? "http://localhost:8000";
+      await fetch(`${_apiBase}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -55,52 +50,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/80 md:flex">
-        <Link href="/" className="flex items-center gap-3 px-6 py-6">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <HeartPulse className="h-5 w-5" />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-semibold leading-none">HealthGuide</p>
-            <p className="text-xs text-muted-foreground">AI Health Dashboard</p>
-          </div>
-        </Link>
-        <nav className="flex flex-1 flex-col gap-1 px-3 pb-4 text-sm">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <CalendarClock className="h-4 w-4" />
-            <span>My assessments</span>
-          </Link>
-          <Link
-            href="/dashboard/appointments"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <BadgeCheck className="h-4 w-4" />
-            <span>My appointments</span>
-          </Link>
-          <Link
-            href="/dashboard/profile"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <User2 className="h-4 w-4" />
-            <span>Profile</span>
-          </Link>
-          <div className="flex items-center gap-3 rounded-lg border-l-4 border-primary bg-primary/10 px-3 py-2.5 text-primary">
-            <Settings2 className="h-4 w-4" />
-            <span>Settings</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </button>
-        </nav>
-      </aside>
+      <RoleSidebar role="user" onLogout={handleLogout} />
 
       <main className="flex min-h-full flex-1 flex-col overflow-y-auto">
         <header className="px-6 pb-4 pt-8 lg:px-8">
@@ -124,47 +74,6 @@ export default function SettingsPage() {
 
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <Card className="border-border/80 bg-card/90 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">
-                  Notifications
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Choose when you hear from HealthGuide.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex items-center justify-between gap-4 rounded-lg bg-background/80 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Assessment summaries
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Updates after each new health assessment.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between gap-4 rounded-lg bg-background/80 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Appointment reminders
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Alerts before upcoming visits.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold">
@@ -193,33 +102,6 @@ export default function SettingsPage() {
                       setTheme(checked ? "dark" : "light")
                     }
                   />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/80 bg-card/90 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">
-                  Privacy and data
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Control how your data is stored and shared.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex items-center justify-between gap-4 rounded-lg bg-background/80 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Share with providers
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Allow connected doctors to see your assessment history.
-                      </p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
                 </div>
               </CardContent>
             </Card>
