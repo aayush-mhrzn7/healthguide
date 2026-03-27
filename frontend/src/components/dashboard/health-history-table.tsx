@@ -6,26 +6,41 @@ import {
   type ColumnDef,
   useReactTable,
 } from "@tanstack/react-table"
+import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 
-type HealthHistoryEntry = {
-  date: string
-  condition: string
-  symptoms: string
-  confidence: string
-  badgeVariant: "success" | "warning" | "destructive"
+export type AssessmentRow = {
+  id: number
+  predictedDisease: string
+  recommendedSpecialty: string
+  confidence: "high" | "medium" | "low" | string
+  createdAt: string | Date
 }
 
-const columns: ColumnDef<HealthHistoryEntry>[] = [
+function confidenceBadgeClass(confidence: string) {
+  if (confidence === "high")
+    return "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+  if (confidence === "medium")
+    return "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+  return "inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300"
+}
+
+const columns: ColumnDef<AssessmentRow>[] = [
   {
-    accessorKey: "date",
+    accessorKey: "createdAt",
     header: () => <span className="px-4 py-3 block">Date</span>,
-    cell: ({ getValue }) => (
-      <span className="px-4 py-4 block text-xs text-muted-foreground">
-        {String(getValue())}
-      </span>
-    ),
+    cell: ({ getValue }) => {
+      const val = getValue() as string | Date
+      const formatted = val
+        ? format(new Date(val), "MMM d, yyyy")
+        : "—"
+      return (
+        <span className="px-4 py-4 block text-xs text-muted-foreground">
+          {formatted}
+        </span>
+      )
+    },
   },
   {
     id: "condition",
@@ -33,10 +48,10 @@ const columns: ColumnDef<HealthHistoryEntry>[] = [
     cell: ({ row }) => (
       <div className="px-4 py-4">
         <p className="text-xs font-semibold text-foreground">
-          {row.original.condition}
+          {row.original.predictedDisease}
         </p>
-        <p className="text-[11px] text-muted-foreground">
-          Symptoms: {row.original.symptoms}
+        <p className="text-[11px] text-muted-foreground capitalize">
+          Specialty: {row.original.recommendedSpecialty}
         </p>
       </div>
     ),
@@ -46,20 +61,14 @@ const columns: ColumnDef<HealthHistoryEntry>[] = [
     header: () => (
       <span className="px-4 py-3 block text-center">Confidence level</span>
     ),
-    cell: ({ row }) => {
-      const badgeClasses =
-        row.original.badgeVariant === "success"
-          ? "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-          : row.original.badgeVariant === "warning"
-            ? "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-            : "inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300"
-
-      return (
-        <div className="px-4 py-4 text-center">
-          <span className={badgeClasses}>{row.original.confidence}</span>
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <div className="px-4 py-4 text-center">
+        <span className={confidenceBadgeClass(row.original.confidence)}>
+          {row.original.confidence.charAt(0).toUpperCase() +
+            row.original.confidence.slice(1)}
+        </span>
+      </div>
+    ),
   },
   {
     id: "actions",
@@ -81,7 +90,7 @@ const columns: ColumnDef<HealthHistoryEntry>[] = [
 ]
 
 type HealthHistoryTableProps = {
-  data: HealthHistoryEntry[]
+  data: AssessmentRow[]
   totalCount: number
 }
 
@@ -116,18 +125,36 @@ export function HealthHistoryTable({ data, totalCount }: HealthHistoryTableProps
             ))}
           </thead>
           <tbody className="divide-y divide-border">
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="transition-colors hover:bg-muted/40"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-8 text-center text-xs text-muted-foreground"
+                >
+                  No assessments yet.{" "}
+                  <a
+                    href="/dashboard/assessment"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Take your first assessment
+                  </a>
+                  .
+                </td>
               </tr>
-            ))}
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="transition-colors hover:bg-muted/40"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -153,4 +180,3 @@ export function HealthHistoryTable({ data, totalCount }: HealthHistoryTableProps
     </div>
   )
 }
-
