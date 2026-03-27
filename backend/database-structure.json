@@ -1,0 +1,79 @@
+{
+  "database": "healthguide",
+  "tables": {
+    "users": {
+      "tableName": "users",
+      "primaryKey": "id",
+      "columns": [
+        { "name": "id", "type": "serial", "nullable": false, "primaryKey": true },
+        { "name": "name", "type": "text", "nullable": false },
+        { "name": "email", "type": "text", "nullable": false, "unique": true },
+        { "name": "password_hash", "type": "text", "nullable": false },
+        { "name": "role", "type": "text", "nullable": false, "default": "user" },
+        { "name": "specialty", "type": "text", "nullable": true },
+        { "name": "bio", "type": "text", "nullable": true },
+        { "name": "date_of_birth", "type": "date", "nullable": true },
+        { "name": "gender", "type": "text", "nullable": true },
+        { "name": "blood_type", "type": "text", "nullable": true },
+        { "name": "phone", "type": "text", "nullable": true },
+        { "name": "address", "type": "text", "nullable": true },
+        { "name": "preferred_communication", "type": "text", "nullable": true },
+        { "name": "primary_care_preference", "type": "text", "nullable": true },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
+      ]
+    },
+    "assessments": {
+      "tableName": "assessments",
+      "primaryKey": "id",
+      "columns": [
+        { "name": "id", "type": "serial", "nullable": false, "primaryKey": true },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "users",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        { "name": "answers", "type": "jsonb", "nullable": false },
+        { "name": "predicted_disease", "type": "text", "nullable": false },
+        { "name": "recommended_specialty", "type": "text", "nullable": false },
+        { "name": "confidence", "type": "text", "nullable": false },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
+      ]
+    },
+    "appointments": {
+      "tableName": "appointments",
+      "primaryKey": "id",
+      "columns": [
+        { "name": "id", "type": "serial", "nullable": false, "primaryKey": true },
+        {
+          "name": "patient_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "users",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "doctor_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "users",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        { "name": "starts_at", "type": "timestamp", "nullable": false },
+        { "name": "ends_at", "type": "timestamp", "nullable": false },
+        { "name": "status", "type": "text", "nullable": false, "default": "scheduled" },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
+      ]
+    }
+  }
+}
