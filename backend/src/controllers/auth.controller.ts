@@ -1,13 +1,17 @@
 import type { Request, Response } from "express";
+import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 
 import { db } from "../db/client";
-import { users, type DbUser } from "../db/schema";
+import { emailOtps, users, type DbUser } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
+import {
+  getOtpExpiryMinutes,
+  sendVerificationOtpEmail,
+} from "../lib/sendVerificationEmail";
 
 const passwordSchema = z
   .string()
@@ -18,18 +22,27 @@ const passwordSchema = z
   );
 
 const signupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email(),
+  name: z.string().trim().min(1, "Name is required"),
+  email: z.string().trim().min(1, "Email is required").email("Invalid email"),
   password: passwordSchema,
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email: z.string().trim().min(1, "Email is required").email("Invalid email"),
+  password: z.string().min(1, "Password is required"),
 });
 
 const refreshSchema = z.object({
   refreshToken: z.string(),
+});
+
+const verifyEmailSchema = z.object({
+  email: z.string().email(),
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
+const resendVerificationSchema = z.object({
+  email: z.string().email(),
 });
 
 const updateProfileSchema = z.object({
@@ -75,6 +88,41 @@ function generateTokens(user: JwtUser) {
   return { accessToken, refreshToken };
 }
 
+function otpExpiresAt() {
+  return new Date(
+    Date.now() + getOtpExpiryMinutes() * 60 * 1000,
+  );
+}
+
+async function createOtpForUser(userId: number, email: string) {
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const codeHash = await bcrypt.hash(code, 10);
+  await db.delete(emailOtps).where(eq(emailOtps.userId, userId));
+  await db.insert(emailOtps).values({
+    userId,
+    codeHash,
+    expiresAt: otpExpiresAt(),
+  });
+  await sendVerificationOtpEmail(email, code);
+}
+
+function publicUserFields(user: DbUser) {
+  return {
+    id: user.id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    emailVerified: user.emailVerified,
+    dateOfBirth: user.dateOfBirth,
+    gender: user.gender,
+    bloodType: user.bloodType,
+    phone: user.phone,
+    address: user.address,
+    preferredCommunication: user.preferredCommunication,
+    primaryCarePreference: user.primaryCarePreference,
+  };
+}
+
 export async function signup(req: Request, res: Response) {
   const parseResult = signupSchema.safeParse(req.body);
   if (!parseResult.success) {
@@ -92,11 +140,31 @@ export async function signup(req: Request, res: Response) {
     .where(eq(users.email, email))
     .limit(1);
 
-  if (existing.length > 0) {
-    return res.status(400).json({ error: "User already exists" });
-  }
-
   const passwordHash = await bcrypt.hash(password, 10);
+
+  if (existing[0]) {
+    const prev = existing[0];
+    if (prev.emailVerified) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+    await db
+      .update(users)
+      .set({ name, passwordHash })
+      .where(eq(users.id, prev.id));
+    try {
+      await createOtpForUser(prev.id, prev.email);
+    } catch (e) {
+      console.error("OTP email failed", e);
+      return res.status(503).json({
+        error:
+          "Could not send verification email. Try again later or contact support.",
+      });
+    }
+    return res.status(200).json({
+      needsVerification: true,
+      email: prev.email,
+    });
+  }
 
   const [user] = await db
     .insert(users)
@@ -104,10 +172,103 @@ export async function signup(req: Request, res: Response) {
       name,
       email,
       passwordHash,
+      emailVerified: false,
     })
     .returning();
 
-  const { accessToken, refreshToken } = generateTokens(user);
+  try {
+    await createOtpForUser(user.id, user.email);
+  } catch (e) {
+    console.error("OTP email failed", e);
+    await db.delete(users).where(eq(users.id, user.id));
+    return res.status(503).json({
+      error:
+        "Could not send verification email. Try again later or contact support.",
+    });
+  }
+
+  return res.status(201).json({
+    needsVerification: true,
+    email: user.email,
+  });
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  const parseResult = verifyEmailSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      issues: parseResult.error.flatten(),
+    });
+  }
+
+  const { email, code } = parseResult.data;
+
+  const found = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  const user = found[0];
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  if (user.emailVerified) {
+    const { accessToken, refreshToken } = generateTokens(user);
+    return res
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      })
+      .json({
+        user: publicUserFields(user),
+        accessToken,
+        alreadyVerified: true,
+      });
+  }
+
+  const otpRows = await db
+    .select()
+    .from(emailOtps)
+    .where(
+      and(
+        eq(emailOtps.userId, user.id),
+        gt(emailOtps.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(emailOtps.createdAt))
+    .limit(1);
+
+  const otpRow = otpRows[0];
+  if (!otpRow) {
+    return res.status(400).json({
+      error: "Code expired or not found. Request a new code.",
+    });
+  }
+
+  const valid = await bcrypt.compare(code, otpRow.codeHash);
+  if (!valid) {
+    return res.status(400).json({ error: "Invalid verification code" });
+  }
+
+  await db.delete(emailOtps).where(eq(emailOtps.userId, user.id));
+
+  const [updated] = await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.id, user.id))
+    .returning();
+
+  if (!updated) {
+    return res.status(500).json({ error: "Verification failed" });
+  }
+
+  const { accessToken, refreshToken } = generateTokens(updated);
 
   return res
     .cookie("refreshToken", refreshToken, {
@@ -117,23 +278,47 @@ export async function signup(req: Request, res: Response) {
       path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
-    .status(201)
     .json({
-      user: {
-        id: user.id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
-        bloodType: user.bloodType,
-        phone: user.phone,
-        address: user.address,
-        preferredCommunication: user.preferredCommunication,
-        primaryCarePreference: user.primaryCarePreference,
-      },
+      user: publicUserFields(updated),
       accessToken,
     });
+}
+
+export async function resendVerificationEmail(req: Request, res: Response) {
+  const parseResult = resendVerificationSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      issues: parseResult.error.flatten(),
+    });
+  }
+
+  const { email } = parseResult.data;
+
+  const found = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  const user = found[0];
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  if (user.emailVerified) {
+    return res.status(400).json({ error: "Email is already verified" });
+  }
+
+  try {
+    await createOtpForUser(user.id, user.email);
+  } catch (e) {
+    console.error("Resend OTP email failed", e);
+    return res.status(503).json({
+      error: "Could not send email. Try again later.",
+    });
+  }
+
+  return res.json({ message: "Verification code sent" });
 }
 
 export async function login(req: Request, res: Response) {
@@ -168,6 +353,13 @@ export async function login(req: Request, res: Response) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
+  if (!existingUser.emailVerified) {
+    return res.status(403).json({
+      error: "Please verify your email before signing in.",
+      code: "EMAIL_NOT_VERIFIED",
+    });
+  }
+
   const { accessToken, refreshToken } = generateTokens(existingUser);
 
   return res
@@ -179,19 +371,7 @@ export async function login(req: Request, res: Response) {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
     .json({
-      user: {
-        id: existingUser.id.toString(),
-        name: existingUser.name,
-        email: existingUser.email,
-        role: existingUser.role,
-        dateOfBirth: existingUser.dateOfBirth,
-        gender: existingUser.gender,
-        bloodType: existingUser.bloodType,
-        phone: existingUser.phone,
-        address: existingUser.address,
-        preferredCommunication: existingUser.preferredCommunication,
-        primaryCarePreference: existingUser.primaryCarePreference,
-      },
+      user: publicUserFields(existingUser),
       accessToken,
     });
 }
@@ -278,19 +458,9 @@ export async function getMe(req: Request, res: Response) {
 
   return res.json({
     user: {
-      id: user.id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
+      ...publicUserFields(user),
       specialty: user.specialty,
       bio: user.bio,
-      dateOfBirth: user.dateOfBirth,
-      gender: user.gender,
-      bloodType: user.bloodType,
-      phone: user.phone,
-      address: user.address,
-      preferredCommunication: user.preferredCommunication,
-      primaryCarePreference: user.primaryCarePreference,
     },
   });
 }
@@ -388,19 +558,9 @@ export async function updateMe(req: Request, res: Response) {
 
   return res.json({
     user: {
-      id: updated.id.toString(),
-      name: updated.name,
-      email: updated.email,
-      role: updated.role,
+      ...publicUserFields(updated),
       specialty: updated.specialty,
       bio: updated.bio,
-      dateOfBirth: updated.dateOfBirth,
-      gender: updated.gender,
-      bloodType: updated.bloodType,
-      phone: updated.phone,
-      address: updated.address,
-      preferredCommunication: updated.preferredCommunication,
-      primaryCarePreference: updated.primaryCarePreference,
     },
   });
 }
