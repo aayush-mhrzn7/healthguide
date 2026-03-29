@@ -1,7 +1,7 @@
+import "./loadEnv";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -12,8 +12,6 @@ import { assessmentsRouter } from "./routes/assessments";
 import { doctorsRouter } from "./routes/doctors";
 import { db } from "./db/client";
 import { users } from "./db/schema";
-
-dotenv.config();
 
 const app = express();
 
@@ -51,6 +49,7 @@ async function ensureAdminUser() {
     email: adminEmail,
     passwordHash,
     role: "admin",
+    emailVerified: true,
   });
 }
 
