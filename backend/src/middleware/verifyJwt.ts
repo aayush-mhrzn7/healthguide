@@ -1,6 +1,6 @@
+import "../loadEnv";
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import "dotenv/config";
 
 import type { UserRole } from "../db/schema";
 
