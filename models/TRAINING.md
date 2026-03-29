@@ -109,10 +109,10 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 The 4,920 rows are split **80/20**:
 
-| Split | Rows | Purpose |
-|---|---|---|
-| **Training set** | 3,936 | The model learns from these — it sees the symptoms and the correct label and adjusts its internal rules |
-| **Test set** | 984 | Held back completely during training — used only at the end to evaluate how well the model generalises to examples it has never seen |
+| Split            | Rows  | Purpose                                                                                                                              |
+| ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Training set** | 3,936 | The model learns from these — it sees the symptoms and the correct label and adjusts its internal rules                              |
+| **Test set**     | 984   | Held back completely during training — used only at the end to evaluate how well the model generalises to examples it has never seen |
 
 `stratify=y` means the split is done **disease by disease** — if Malaria has 120 examples, exactly 96 go to training and 24 go to the test set. Every disease is represented in both splits proportionally. Without stratification you might accidentally put all examples of a rare disease in one split.
 
