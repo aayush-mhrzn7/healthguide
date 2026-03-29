@@ -63,6 +63,7 @@ export async function createDoctor(req: Request, res: Response) {
       role: "doctor",
       specialty,
       address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
+      emailVerified: true,
     })
     .returning();
 

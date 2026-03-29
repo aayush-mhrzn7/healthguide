@@ -1,6 +1,5 @@
-
+import "./loadEnv";
 import bcrypt from "bcryptjs";
-import "dotenv/config";
 
 import { db } from "./db/client";
 import { appointments, assessments, users } from "./db/schema";
@@ -24,6 +23,7 @@ async function seed() {
     email: seedData.admin.email,
     passwordHash: await bcrypt.hash(seedData.admin.password, 10),
     role: "admin",
+    emailVerified: true,
   });
 
   console.log(`👤  Seeding user:  ${seedData.user.email}`);
@@ -32,6 +32,7 @@ async function seed() {
     email: seedData.user.email,
     passwordHash: await bcrypt.hash(seedData.user.password, 10),
     role: "user",
+    emailVerified: true,
   });
 
   for (const doc of seedData.doctors) {
@@ -42,6 +43,7 @@ async function seed() {
       passwordHash: await bcrypt.hash(doc.password, 10),
       role: "doctor",
       specialty: doc.specialty,
+      emailVerified: true,
     });
   }
 
