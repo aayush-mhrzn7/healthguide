@@ -9,6 +9,7 @@
         { "name": "name", "type": "text", "nullable": false },
         { "name": "email", "type": "text", "nullable": false, "unique": true },
         { "name": "password_hash", "type": "text", "nullable": false },
+        { "name": "email_verified", "type": "boolean", "nullable": false, "default": false },
         { "name": "role", "type": "text", "nullable": false, "default": "user" },
         { "name": "specialty", "type": "text", "nullable": true },
         { "name": "bio", "type": "text", "nullable": true },
@@ -41,6 +42,26 @@
         { "name": "predicted_disease", "type": "text", "nullable": false },
         { "name": "recommended_specialty", "type": "text", "nullable": false },
         { "name": "confidence", "type": "text", "nullable": false },
+        { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
+      ]
+    },
+    "email_otps": {
+      "tableName": "email_otps",
+      "primaryKey": "id",
+      "columns": [
+        { "name": "id", "type": "serial", "nullable": false, "primaryKey": true },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "users",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        { "name": "code_hash", "type": "text", "nullable": false },
+        { "name": "expires_at", "type": "timestamp", "nullable": false },
         { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
       ]
     },

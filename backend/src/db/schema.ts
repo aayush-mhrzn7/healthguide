@@ -6,6 +6,7 @@ import {
   date,
   integer,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const USER_ROLES = ["user", "doctor", "admin"] as const;
@@ -16,6 +17,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
 
   role: text("role").notNull().default("user"),
   specialty: text("specialty"), // For doctors: e.g. "general", "cardiology", "respiratory"
@@ -29,6 +31,18 @@ export const users = pgTable("users", {
   preferredCommunication: text("preferred_communication"),
   primaryCarePreference: text("primary_care_preference"),
 
+  createdAt: timestamp("created_at", { mode: "date" })
+    .defaultNow()
+    .notNull(),
+});
+
+export const emailOtps = pgTable("email_otps", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
     .notNull(),
@@ -66,6 +80,7 @@ export const appointments = pgTable("appointments", {
 
 export type DbUser = typeof users.$inferSelect;
 export type NewDbUser = typeof users.$inferInsert;
+export type DbEmailOtp = typeof emailOtps.$inferSelect;
 export type DbAppointment = typeof appointments.$inferSelect;
 export type NewDbAppointment = typeof appointments.$inferInsert;
 export type DbAssessment = typeof assessments.$inferSelect;
