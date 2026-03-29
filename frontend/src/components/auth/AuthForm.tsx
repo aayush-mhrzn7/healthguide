@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -11,44 +10,32 @@ import { PasswordInput } from "@/components/form/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { api } from "@/lib/apiClient";
+import {
+  loginFormSchema,
+  signupFormSchema,
+  type LoginFormValues,
+  type SignupFormValues,
+} from "@/lib/authSchemas";
 
 type Mode = "login" | "signup";
 
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(
-    /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
-    "Password must contain both letters and numbers (alphanumeric only)"
-  );
-
-const baseSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-  name: z.string().optional(),
-});
-
-const signupSchema = baseSchema.extend({
-  name: z.string().min(1, "Name is required"),
-  password: passwordSchema,
-});
-
-const loginSchema = baseSchema.omit({ name: true });
-
-type AuthValues = z.infer<typeof baseSchema>;
+type AuthFormValues = LoginFormValues & { name?: string };
 
 type AuthUser = {
   id: string;
   name: string;
   email: string;
   role: "user" | "doctor" | "admin";
+  emailVerified?: boolean;
 };
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
+  const isSignup = mode === "signup";
+  const schema = isSignup ? signupFormSchema : loginFormSchema;
 
-  const form = useForm<AuthValues>({
-    resolver: zodResolver(mode === "signup" ? signupSchema : loginSchema),
+  const form = useForm<AuthFormValues>({
+    resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: {
       email: "",
@@ -57,20 +44,50 @@ export function AuthForm({ mode }: { mode: Mode }) {
     },
   });
 
-  const onSubmit = async (values: AuthValues) => {
+  const onSubmit = async (values: AuthFormValues) => {
+    const parsed = schema.safeParse(values);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0];
+        if (typeof key === "string") {
+          form.setError(key as keyof AuthFormValues, {
+            type: "manual",
+            message: issue.message,
+          });
+        }
+      }
+      toast.error("Please fix the highlighted fields.", {
+        description:
+          parsed.error.issues[0]?.message ?? "Check the form and try again.",
+      });
+      return;
+    }
+    const requestBody = parsed.data as SignupFormValues | LoginFormValues;
     try {
       const endpoint = mode === "signup" ? "/auth/signup" : "/auth/login";
-      const response = await api.post<{
-        user: AuthUser;
-        accessToken: string;
-      }>(endpoint, values);
+      const response = await api.post<
+        | { needsVerification: true; email: string }
+        | { user: AuthUser; accessToken: string }
+      >(endpoint, requestBody);
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("accessToken", response.data.accessToken);
-        window.localStorage.setItem("user", JSON.stringify(response.data.user));
+      if ("needsVerification" in response.data && response.data.needsVerification) {
+        toast.success("Check your email", {
+          description: "We sent a 6-digit code to verify your account.",
+        });
+        router.push(
+          `/verify-email?email=${encodeURIComponent(response.data.email)}`,
+        );
+        return;
       }
 
-      const role = response.data.user.role;
+      const session = response.data as { user: AuthUser; accessToken: string };
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("accessToken", session.accessToken);
+        window.localStorage.setItem("user", JSON.stringify(session.user));
+      }
+
+      const role = session.user.role;
 
       if (role === "admin") {
         router.push("/admin");
@@ -82,22 +99,35 @@ export function AuthForm({ mode }: { mode: Mode }) {
     } catch (error) {
       console.error("Auth error", error);
 
+      const errData = (error as { response?: { data?: { error?: string; code?: string } } })
+        .response?.data;
+
+      if (
+        mode === "login" &&
+        errData?.code === "EMAIL_NOT_VERIFIED" &&
+        requestBody.email
+      ) {
+        toast.message("Email not verified", {
+          description: "Enter the code we sent you, or request a new one.",
+        });
+        router.push(
+          `/verify-email?email=${encodeURIComponent(requestBody.email)}`,
+        );
+        return;
+      }
+
       const fallbackMessage =
         mode === "signup"
           ? "Could not create your account. Please try again."
           : "Could not log you in. Please check your credentials.";
 
-      const apiMessage =
-        (error as { response?: { data?: { error?: string } } }).response?.data
-          ?.error ?? fallbackMessage;
+      const apiMessage = errData?.error ?? fallbackMessage;
 
       toast.error(mode === "signup" ? "Sign up failed" : "Login failed", {
         description: apiMessage,
       });
     }
   };
-
-  const isSignup = mode === "signup";
 
   return (
     <div className="w-full max-w-sm rounded-2xl border border-border bg-card/90 p-6 shadow-md">
@@ -125,7 +155,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         })}
       >
         {isSignup && (
-          <CustomInput<AuthValues>
+          <CustomInput<AuthFormValues>
             control={form.control}
             name="name"
             label="Full name"
@@ -133,7 +163,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
         )}
 
-        <CustomInput<AuthValues>
+        <CustomInput<AuthFormValues>
           control={form.control}
           name="email"
           label="Email"
@@ -141,7 +171,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           placeholder="you@example.com"
         />
 
-        <PasswordInput<AuthValues>
+        <PasswordInput<AuthFormValues>
           control={form.control}
           name="password"
           label="Password"
