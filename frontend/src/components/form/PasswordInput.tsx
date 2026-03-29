@@ -24,11 +24,11 @@ export type PasswordInputProps<TFieldValues extends FieldValues> = {
 
 function validatePassword(password: string): {
   minLength: boolean;
-  alphanumeric: boolean;
+  letterAndNumber: boolean;
 } {
   return {
     minLength: password.length >= 8,
-    alphanumeric: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/.test(password),
+    letterAndNumber: /^(?=.*[A-Za-z])(?=.*\d).+$/.test(password),
   };
 }
 
@@ -94,19 +94,19 @@ export function PasswordInput<TFieldValues extends FieldValues>({
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px]">
-                  {hints.alphanumeric ? (
+                  {hints.letterAndNumber ? (
                     <Check className="h-3 w-3 text-emerald-500" />
                   ) : (
                     <X className="h-3 w-3 text-muted-foreground" />
                   )}
                   <span
                     className={
-                      hints.alphanumeric
+                      hints.letterAndNumber
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-muted-foreground"
                     }
                   >
-                    Letters and numbers only
+                    At least one letter and one number
                   </span>
                 </div>
               </div>

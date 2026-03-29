@@ -17,6 +17,9 @@ export type CustomInputProps<TFieldValues extends FieldValues> = {
   label: string
   type?: React.InputHTMLAttributes<HTMLInputElement>["type"]
   placeholder?: string
+  inputMode?: React.InputHTMLAttributes<HTMLInputElement>["inputMode"]
+  maxLength?: number
+  autoComplete?: string
 }
 
 export function CustomInput<TFieldValues extends FieldValues>({
@@ -25,6 +28,9 @@ export function CustomInput<TFieldValues extends FieldValues>({
   label,
   type = "text",
   placeholder,
+  inputMode,
+  maxLength,
+  autoComplete,
 }: CustomInputProps<TFieldValues>) {
   return (
     <FormField
@@ -37,6 +43,9 @@ export function CustomInput<TFieldValues extends FieldValues>({
             <Input
               type={type}
               placeholder={placeholder}
+              inputMode={inputMode}
+              maxLength={maxLength}
+              autoComplete={autoComplete}
               {...field}
             />
           </FormControl>
