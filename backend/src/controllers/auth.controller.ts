@@ -51,6 +51,8 @@ const updateProfileSchema = z.object({
   bloodType: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
+  latitude: z.number().finite().optional().nullable(),
+  longitude: z.number().finite().optional().nullable(),
   specialty: z.string().optional().nullable(),
   bio: z.string().optional().nullable(),
   preferredCommunication: z.string().optional().nullable(),
@@ -118,6 +120,8 @@ function publicUserFields(user: DbUser) {
     bloodType: user.bloodType,
     phone: user.phone,
     address: user.address,
+    latitude: user.latitude,
+    longitude: user.longitude,
     preferredCommunication: user.preferredCommunication,
     primaryCarePreference: user.primaryCarePreference,
   };
@@ -487,6 +491,8 @@ export async function updateMe(req: Request, res: Response) {
     bloodType,
     phone,
     address,
+    latitude,
+    longitude,
     specialty,
     bio,
     preferredCommunication,
@@ -544,6 +550,14 @@ export async function updateMe(req: Request, res: Response) {
   if (typeof address !== "undefined") {
     updateValues.address =
       address && address.trim().length > 0 ? address.trim() : null;
+  }
+
+  if (typeof latitude !== "undefined") {
+    updateValues.latitude = latitude ?? null;
+  }
+
+  if (typeof longitude !== "undefined") {
+    updateValues.longitude = longitude ?? null;
   }
 
   const [updated] = await db
