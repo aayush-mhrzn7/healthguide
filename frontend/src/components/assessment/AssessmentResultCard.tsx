@@ -15,6 +15,9 @@ export type AssessmentResultCardProps = {
   predictedDisease: string;
   recommendedSpecialty: string;
   confidence: string;
+  topPredictions: Array<{ disease: string; confidence: number }>;
+  reasoning?: string;
+  selectedSymptoms?: string[];
   onBookDoctor: () => void;
 };
 
@@ -22,6 +25,9 @@ export function AssessmentResultCard({
   predictedDisease,
   recommendedSpecialty,
   confidence,
+  topPredictions,
+  reasoning,
+  selectedSymptoms,
   onBookDoctor,
 }: AssessmentResultCardProps) {
   const confidenceLabel =
@@ -55,6 +61,41 @@ export function AssessmentResultCard({
         >
           {confidenceLabel}
         </span>
+        {topPredictions.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Top predictions
+            </p>
+            <div className="space-y-1 rounded-md border border-border/70 p-2">
+              {topPredictions.map((item, idx) => (
+                <div
+                  key={`${item.disease}-${idx}`}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span>{item.disease}</span>
+                  <span className="text-muted-foreground">
+                    {(item.confidence * 100).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {reasoning && (
+          <div className="rounded-md border border-border/70 bg-muted/30 p-3">
+            <p className="text-xs leading-5 text-muted-foreground">{reasoning}</p>
+          </div>
+        )}
+        {selectedSymptoms && selectedSymptoms.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Symptoms considered
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {selectedSymptoms.slice(0, 8).join(", ")}
+            </p>
+          </div>
+        )}
         <Button
           className="w-full"
           size="lg"

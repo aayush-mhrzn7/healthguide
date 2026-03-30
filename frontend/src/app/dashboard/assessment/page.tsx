@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { QUIZ_QUESTIONS } from "@/constants/quiz";
 import { api } from "@/lib/apiClient";
@@ -12,7 +13,6 @@ import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,7 +22,16 @@ type AssessmentResult = {
   predictedDisease: string;
   recommendedSpecialty: string;
   confidence: string;
+  topPredictions: Array<{ disease: string; confidence: number }>;
+  reasoning: string;
+  selectedSymptoms: string[];
   createdAt: string;
+};
+
+type QuizSymptom = {
+  id: string;
+  symptomKey: string;
+  text: string;
 };
 
 export default function AssessmentPage() {
@@ -32,10 +41,25 @@ export default function AssessmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<QuizSymptom[]>(QUIZ_QUESTIONS);
 
-  const currentQuestion = QUIZ_QUESTIONS[currentIndex];
-  const isLastQuestion = currentIndex === QUIZ_QUESTIONS.length - 1;
+  const currentQuestion = questions[currentIndex];
+  const isLastQuestion = currentIndex === questions.length - 1;
   const isComplete = result !== null;
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await api.get<{ symptoms: QuizSymptom[] }>(
+          "/assessments/symptoms",
+        );
+        if (res.data.symptoms?.length) {
+          setQuestions(res.data.symptoms);
+        }
+      } catch {
+      }
+    })();
+  }, []);
 
   const submitAssessment = useCallback(
     async (finalAnswers: Record<string, boolean>) => {
@@ -48,11 +72,15 @@ export default function AssessmentPage() {
           { answers: finalAnswers }
         );
         setResult(res.data.assessment);
+        toast.success("Assessment complete", {
+          description: "Your analysis result is ready.",
+        });
       } catch (err) {
         const msg =
           (err as { response?: { data?: { error?: string } } }).response?.data
             ?.error ?? "Failed to submit assessment.";
         setError(msg);
+        toast.error("Assessment failed", { description: msg });
       } finally {
         setIsSubmitting(false);
       }
@@ -121,16 +149,13 @@ export default function AssessmentPage() {
         <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
           {!isComplete ? (
             <>
-              <QuizProgress
-                current={currentIndex + 1}
-                total={QUIZ_QUESTIONS.length}
-              />
+              <QuizProgress current={currentIndex + 1} total={questions.length} />
               {currentQuestion && (
                 <div className="max-w-xl">
                   <QuizQuestionCard
                     question={currentQuestion.text}
                     questionNumber={currentIndex + 1}
-                    totalQuestions={QUIZ_QUESTIONS.length}
+                    totalQuestions={questions.length}
                     onAnswer={handleAnswer}
                     disabled={isSubmitting}
                   />
@@ -156,6 +181,9 @@ export default function AssessmentPage() {
                   predictedDisease={result.predictedDisease}
                   recommendedSpecialty={result.recommendedSpecialty}
                   confidence={result.confidence}
+                  topPredictions={result.topPredictions ?? []}
+                  reasoning={result.reasoning}
+                  selectedSymptoms={result.selectedSymptoms}
                   onBookDoctor={handleBookDoctor}
                 />
               </div>
