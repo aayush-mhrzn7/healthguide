@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Plus, UserCog, Users } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
@@ -16,12 +18,68 @@ import { api } from "@/lib/apiClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
+import { LocationPicker } from "@/components/location/LocationPicker";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 type AdminStats = {
   totalUsers: number;
   totalDoctors: number;
   totalAppointments: number;
+  totalAssessments: number;
+  diseaseDistribution: Array<{ label: string; value: number }>;
+  confidenceDistribution: Array<{ label: string; value: number }>;
+  appointmentStatusDistribution: Array<{ label: string; value: number }>;
 };
+
+function MiniBarChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: Array<{ label: string; value: number }>;
+}) {
+  const chartConfig = {
+    value: {
+      label: "Count",
+      color: "var(--primary)",
+    },
+  } satisfies ChartConfig;
+
+  return (
+    <Card className="border-border/80 bg-card/90 shadow-xs">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-1">
+        {data.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No data yet.</p>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-52 w-full">
+            <BarChart data={data}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                tickMargin={8}
+                tickFormatter={(value) => String(value).slice(0, 14)}
+              />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="value" fill="var(--chart-1)" radius={6} />
+            </BarChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDashboardPage() {
   return (
@@ -39,6 +97,8 @@ function AdminDashboardInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [clinicLocation, setClinicLocation] = useState("");
+  const [clinicLatitude, setClinicLatitude] = useState<number | null>(null);
+  const [clinicLongitude, setClinicLongitude] = useState<number | null>(null);
   const [specialty, setSpecialty] = useState("general");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +140,8 @@ function AdminDashboardInner() {
         email: email.trim(),
         password: password.trim(),
         clinicLocation: clinicLocation.trim() || null,
+        clinicLatitude,
+        clinicLongitude,
         specialty,
       });
 
@@ -88,7 +150,12 @@ function AdminDashboardInner() {
       setEmail("");
       setPassword("");
       setClinicLocation("");
+      setClinicLatitude(null);
+      setClinicLongitude(null);
       setSpecialty("general");
+      toast.success("Doctor created", {
+        description: "Doctor account was created successfully.",
+      });
 
       try {
         const response = await api.get<{ stats: AdminStats }>("/admin/stats");
@@ -100,6 +167,7 @@ function AdminDashboardInner() {
         (err as { response?: { data?: { error?: string } } }).response?.data
           ?.error ?? "Failed to create doctor.";
       setError(msg);
+      toast.error("Create doctor failed", { description: msg });
     } finally {
       setIsCreating(false);
     }
@@ -188,6 +256,23 @@ function AdminDashboardInner() {
                     <Skeleton className="h-7 w-10" />
                   ) : (
                     (stats?.totalAppointments ?? 0)
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/80 bg-card/90 shadow-xs">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <Activity className="h-3.5 w-3.5" />
+                  Assessments
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <p className="text-2xl font-semibold">
+                  {isLoadingStats ? (
+                    <Skeleton className="h-7 w-10" />
+                  ) : (
+                    (stats?.totalAssessments ?? 0)
                   )}
                 </p>
               </CardContent>
@@ -297,22 +382,19 @@ function AdminDashboardInner() {
                     </div>
                   )}
                 </div>
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="doctor-clinic-location"
-                    className="text-[11px] font-medium text-muted-foreground"
-                  >
-                    Clinic location
-                  </label>
-                  <input
-                    id="doctor-clinic-location"
-                    type="text"
-                    value={clinicLocation}
-                    onChange={(e) => setClinicLocation(e.target.value)}
-                    placeholder="Downtown Health Clinic, NYC"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                </div>
+                <LocationPicker
+                  label="Doctor's clinic location"
+                  address={clinicLocation}
+                  latitude={clinicLatitude}
+                  longitude={clinicLongitude}
+                  onAddressChange={setClinicLocation}
+                  onLocationChange={({ address, latitude, longitude }) => {
+                    setClinicLocation(address);
+                    setClinicLatitude(latitude);
+                    setClinicLongitude(longitude);
+                  }}
+                  placeholder="Search clinic location"
+                />
                 <div className="grid gap-1">
                   <label
                     htmlFor="doctor-specialty"
@@ -354,6 +436,20 @@ function AdminDashboardInner() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+          <div className="ml-0 mt-4 grid min-w-0 flex-1 gap-4 md:ml-6 md:mt-0 md:grid-cols-1 lg:grid-cols-1">
+            <MiniBarChart
+              title="Top predicted conditions"
+              data={stats?.diseaseDistribution ?? []}
+            />
+            <MiniBarChart
+              title="Assessment confidence"
+              data={stats?.confidenceDistribution ?? []}
+            />
+            <MiniBarChart
+              title="Appointment status"
+              data={stats?.appointmentStatusDistribution ?? []}
+            />
           </div>
         </section>
       </main>
