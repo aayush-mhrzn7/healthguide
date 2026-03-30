@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import { api } from "@/lib/apiClient";
 import { DoctorSelector, type Doctor } from "@/components/booking/DoctorSelector";
@@ -25,11 +26,22 @@ export default function BookingPage() {
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [hasUserLocation, setHasUserLocation] = useState<boolean>(false);
 
   const loadDoctors = useCallback(async () => {
     setIsLoadingDoctors(true);
     try {
+      try {
+        const me = await api.get<{ user: { latitude: number | null; longitude: number | null } }>(
+          "/auth/me",
+        );
+        setHasUserLocation(
+          typeof me.data.user.latitude === "number" &&
+            typeof me.data.user.longitude === "number",
+        );
+      } catch {
+        setHasUserLocation(false);
+      }
       const res = await api.get<{ doctors: Doctor[] }>(
         `/doctors?specialty=${encodeURIComponent(specialty)}`
       );
@@ -42,7 +54,7 @@ export default function BookingPage() {
     } finally {
       setIsLoadingDoctors(false);
     }
-  }, [specialty]);
+  }, [specialty, selectedDoctorId]);
 
   useEffect(() => {
     loadDoctors();
@@ -72,7 +84,9 @@ export default function BookingPage() {
 
   const handleSubmit = async () => {
     if (!selectedDoctorId || !selectedSlot) {
-      setError("Please select a doctor and a time slot.");
+      const message = "Please select a doctor and a time slot.";
+      setError(message);
+      toast.error("Booking failed", { description: message });
       return;
     }
 
@@ -88,15 +102,16 @@ export default function BookingPage() {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
       });
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/dashboard/appointments");
-      }, 2000);
+      toast.success("Appointment booked", {
+        description: "Your appointment is confirmed.",
+      });
+      router.push("/dashboard/appointments");
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } } }).response?.data
           ?.error ?? "Failed to book appointment.";
       setError(msg);
+      toast.error("Booking failed", { description: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -118,21 +133,6 @@ export default function BookingPage() {
     router.push("/login");
   };
 
-  if (success) {
-    return (
-      <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 items-center justify-center">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center dark:border-emerald-900 dark:bg-emerald-950/30">
-          <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
-            Appointment booked successfully!
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Redirecting to your appointments…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
       <RoleSidebar role="user" onLogout={handleLogout} />
@@ -145,6 +145,11 @@ export default function BookingPage() {
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Select a doctor and time slot. Recommended specialty:{" "}
             <span className="font-medium text-foreground">{specialty}</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {hasUserLocation
+              ? "Doctors are sorted nearest first using your saved location."
+              : "Add your location in profile to sort doctors by nearest distance."}
           </p>
         </header>
 

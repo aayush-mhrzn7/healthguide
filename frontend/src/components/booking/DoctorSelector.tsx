@@ -16,6 +16,10 @@ export type Doctor = {
   name: string;
   email: string;
   specialty: string;
+  clinicLocation: string | null;
+  clinicLatitude: number | null;
+  clinicLongitude: number | null;
+  distanceKm: number | null;
 };
 
 export type DoctorSelectorProps = {
@@ -101,6 +105,16 @@ export function DoctorSelector({
               {doctor.name}
             </span>
             <span className="text-xs text-primary">{doctor.specialty}</span>
+            {doctor.clinicLocation && (
+              <span className="text-[11px] text-muted-foreground">
+                Doctor&apos;s clinic location: {doctor.clinicLocation}
+              </span>
+            )}
+            {doctor.distanceKm != null && (
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                ~{doctor.distanceKm.toFixed(2)} km away
+              </span>
+            )}
           </button>
         ))}
       </CardContent>
