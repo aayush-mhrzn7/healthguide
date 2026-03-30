@@ -18,6 +18,8 @@
         { "name": "blood_type", "type": "text", "nullable": true },
         { "name": "phone", "type": "text", "nullable": true },
         { "name": "address", "type": "text", "nullable": true },
+        { "name": "latitude", "type": "double precision", "nullable": true },
+        { "name": "longitude", "type": "double precision", "nullable": true },
         { "name": "preferred_communication", "type": "text", "nullable": true },
         { "name": "primary_care_preference", "type": "text", "nullable": true },
         { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
@@ -42,6 +44,9 @@
         { "name": "predicted_disease", "type": "text", "nullable": false },
         { "name": "recommended_specialty", "type": "text", "nullable": false },
         { "name": "confidence", "type": "text", "nullable": false },
+        { "name": "top_predictions", "type": "jsonb", "nullable": true },
+        { "name": "reasoning", "type": "text", "nullable": true },
+        { "name": "selected_symptoms", "type": "jsonb", "nullable": true },
         { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
       ]
     },

@@ -7,6 +7,7 @@ import {
   integer,
   jsonb,
   boolean,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 export const USER_ROLES = ["user", "doctor", "admin"] as const;
@@ -28,6 +29,8 @@ export const users = pgTable("users", {
   bloodType: text("blood_type"),
   phone: text("phone"),
   address: text("address"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   preferredCommunication: text("preferred_communication"),
   primaryCarePreference: text("primary_care_preference"),
 
@@ -57,6 +60,9 @@ export const assessments = pgTable("assessments", {
   predictedDisease: text("predicted_disease").notNull(),
   recommendedSpecialty: text("recommended_specialty").notNull(),
   confidence: text("confidence").notNull(), // "high" | "medium" | "low"
+  topPredictions: jsonb("top_predictions"),
+  reasoning: text("reasoning"),
+  selectedSymptoms: jsonb("selected_symptoms"),
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
     .notNull(),
