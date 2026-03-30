@@ -4,8 +4,6 @@ import { Manrope } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
 
 import "./globals.css";
-import Script from "next/script";
-import Head from "next/head";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -25,14 +23,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${manrope.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${manrope.className} ${manrope.variable} font-sans antialiased bg-background text-foreground`}
       >
-        {process.env.NODE_ENV === "development" && (
-          <script
-            src="https://unpkg.com/react-scan/dist/auto.global.js"
-            crossOrigin="anonymous"
-          />
-        )}
         <AppShell>{children}</AppShell>
       </body>
     </html>
