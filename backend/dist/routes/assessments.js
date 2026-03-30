@@ -8,3 +8,5 @@ const assessmentsRouter = (0, express_1.Router)();
 exports.assessmentsRouter = assessmentsRouter;
 assessmentsRouter.post("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.submitAssessment);
 assessmentsRouter.get("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getUserAssessments);
+assessmentsRouter.get("/symptoms", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getQuizSymptoms);
+assessmentsRouter.get("/dashboard-summary", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getDashboardSummary);

@@ -10,10 +10,15 @@ const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
 const schema_1 = require("../db/schema");
+const passwordSchema = zod_1.z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, "Password must contain at least one letter and one number");
 const createDoctorSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, "Name is required"),
     email: zod_1.z.string().email(),
-    password: zod_1.z.string().min(6, "Password must be at least 6 characters"),
+    password: passwordSchema,
+    clinicLocation: zod_1.z.string().optional().nullable(),
     specialty: zod_1.z
         .enum(["general", "respiratory", "allergy", "cardiology"])
         .optional()
@@ -27,7 +32,7 @@ async function createDoctor(req, res) {
             issues: parseResult.error.flatten(),
         });
     }
-    const { name, email, password, specialty } = parseResult.data;
+    const { name, email, password, specialty, clinicLocation } = parseResult.data;
     const existing = await client_1.db
         .select()
         .from(schema_1.users)
@@ -45,6 +50,8 @@ async function createDoctor(req, res) {
         passwordHash,
         role: "doctor",
         specialty,
+        address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
+        emailVerified: true,
     })
         .returning();
     return res.status(201).json({
@@ -54,23 +61,52 @@ async function createDoctor(req, res) {
             email: doctor.email,
             role: doctor.role,
             specialty: doctor.specialty,
+            clinicLocation: doctor.address,
         },
     });
 }
 async function getAdminStats(_req, res) {
-    const [allUsers, doctors, allAppointments] = await Promise.all([
+    const [allUsers, doctors, allAppointments, allAssessments] = await Promise.all([
         client_1.db.select().from(schema_1.users),
         client_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.role, "doctor")),
         client_1.db.select().from(schema_1.appointments),
+        client_1.db.select().from(schema_1.assessments),
     ]);
     const totalUsers = allUsers.length;
     const totalDoctors = doctors.length;
     const totalAppointments = allAppointments.length;
+    const assessmentRows = allAssessments;
+    const byDisease = new Map();
+    const byConfidence = new Map();
+    const byAppointmentStatus = new Map();
+    for (const row of assessmentRows) {
+        byDisease.set(row.predictedDisease, (byDisease.get(row.predictedDisease) ?? 0) + 1);
+        byConfidence.set(row.confidence, (byConfidence.get(row.confidence) ?? 0) + 1);
+    }
+    for (const row of allAppointments) {
+        const status = row.status || "unknown";
+        byAppointmentStatus.set(status, (byAppointmentStatus.get(status) ?? 0) + 1);
+    }
+    const diseaseDistribution = Array.from(byDisease.entries())
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 7);
+    const confidenceDistribution = ["high", "medium", "low"].map((key) => ({
+        label: key,
+        value: byConfidence.get(key) ?? 0,
+    }));
+    const appointmentStatusDistribution = Array.from(byAppointmentStatus.entries())
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value);
     return res.json({
         stats: {
             totalUsers,
             totalDoctors,
             totalAppointments,
+            totalAssessments: assessmentRows.length,
+            diseaseDistribution,
+            confidenceDistribution,
+            appointmentStatusDistribution,
         },
     });
 }

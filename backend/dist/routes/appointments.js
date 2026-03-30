@@ -6,9 +6,7 @@ const appointments_controller_1 = require("../controllers/appointments.controlle
 const verifyJwt_1 = require("../middleware/verifyJwt");
 const appointmentsRouter = (0, express_1.Router)();
 exports.appointmentsRouter = appointmentsRouter;
-// User creates appointment
 appointmentsRouter.post("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.createAppointment);
-// User views their appointments
 appointmentsRouter.get("/user", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.getUserAppointments);
-// Doctor views their appointments (for calendar)
 appointmentsRouter.get("/doctor", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["doctor"]), appointments_controller_1.getDoctorAppointments);
+appointmentsRouter.get("/booked-slots", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.getDoctorBookedSlots);

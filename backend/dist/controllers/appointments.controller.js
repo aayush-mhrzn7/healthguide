@@ -3,14 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAppointment = createAppointment;
 exports.getDoctorAppointments = getDoctorAppointments;
 exports.getUserAppointments = getUserAppointments;
+exports.getDoctorBookedSlots = getDoctorBookedSlots;
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
 const schema_1 = require("../db/schema");
 const createAppointmentSchema = zod_1.z.object({
     doctorId: zod_1.z.number().int().positive(),
-    startsAt: zod_1.z.string().datetime(),
-    endsAt: zod_1.z.string().datetime(),
+    startsAt: zod_1.z.string().min(1),
+    endsAt: zod_1.z.string().min(1),
 });
 async function createAppointment(req, res) {
     const { authUser } = req;
@@ -25,7 +26,6 @@ async function createAppointment(req, res) {
         });
     }
     const { doctorId, startsAt, endsAt } = parseResult.data;
-    // Basic check that doctor exists and has doctor role
     const doctor = await client_1.db
         .select()
         .from(schema_1.users)
@@ -103,4 +103,20 @@ async function getUserAppointments(req, res) {
         status: row.appointment.status,
     }));
     return res.json({ appointments: data });
+}
+async function getDoctorBookedSlots(req, res) {
+    const doctorId = Number(req.query.doctorId);
+    if (!Number.isInteger(doctorId) || doctorId <= 0) {
+        return res.status(400).json({ error: "Valid doctorId is required" });
+    }
+    const rows = await client_1.db
+        .select({ startsAt: schema_1.appointments.startsAt, endsAt: schema_1.appointments.endsAt })
+        .from(schema_1.appointments)
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.appointments.doctorId, doctorId), (0, drizzle_orm_1.eq)(schema_1.appointments.status, "scheduled")));
+    return res.json({
+        slots: rows.map((r) => ({
+            startsAt: r.startsAt,
+            endsAt: r.endsAt,
+        })),
+    });
 }
