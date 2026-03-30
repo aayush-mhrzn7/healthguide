@@ -22,6 +22,20 @@
       "when": 1772400000000,
       "tag": "0004_email_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772800000000,
+      "tag": "0005_assessment_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772900000000,
+      "tag": "0006_user_coordinates",
+      "breakpoints": true
     }
   ]
 }
