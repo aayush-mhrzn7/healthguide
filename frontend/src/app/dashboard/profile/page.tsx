@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import {
   BadgeCheck,
@@ -36,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { LocationPicker } from "@/components/location/LocationPicker";
 
 type ProfileUser = {
   id: string;
@@ -46,6 +48,8 @@ type ProfileUser = {
   bloodType: string | null;
   phone: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export default function ProfilePage() {
@@ -58,6 +62,8 @@ export default function ProfilePage() {
   const [formBloodType, setFormBloodType] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formAddress, setFormAddress] = useState("");
+  const [formLatitude, setFormLatitude] = useState<number | null>(null);
+  const [formLongitude, setFormLongitude] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -96,6 +102,8 @@ export default function ProfilePage() {
     setFormBloodType(user.bloodType ?? "");
     setFormPhone(user.phone ?? "");
     setFormAddress(user.address ?? "");
+    setFormLatitude(user.latitude ?? null);
+    setFormLongitude(user.longitude ?? null);
     setIsDialogOpen(true);
   };
 
@@ -109,6 +117,8 @@ export default function ProfilePage() {
         bloodType: formBloodType || null,
         phone: formPhone || null,
         address: formAddress || null,
+        latitude: formLatitude,
+        longitude: formLongitude,
       };
 
       const response = await api.patch<{ user: ProfileUser }>(
@@ -118,8 +128,14 @@ export default function ProfilePage() {
 
       setUser(response.data.user);
       setIsDialogOpen(false);
+      toast.success("Profile updated", {
+        description: "Your changes have been saved.",
+      });
     } catch (error) {
       console.error("Failed to save profile", error);
+      toast.error("Profile update failed", {
+        description: "Could not save your profile changes.",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -255,22 +271,19 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <div className="grid gap-1 text-xs">
-                    <label
-                      htmlFor="address"
-                      className="text-[11px] font-medium text-muted-foreground"
-                    >
-                      Home address
-                    </label>
-                    <input
-                      id="address"
-                      type="text"
-                      value={formAddress}
-                      onChange={(e) => setFormAddress(e.target.value)}
-                      placeholder="City, area, street"
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    />
-                  </div>
+                  <LocationPicker
+                    label="Home location"
+                    address={formAddress}
+                    latitude={formLatitude}
+                    longitude={formLongitude}
+                    onAddressChange={setFormAddress}
+                    onLocationChange={({ address, latitude, longitude }) => {
+                      setFormAddress(address);
+                      setFormLatitude(latitude);
+                      setFormLongitude(longitude);
+                    }}
+                    placeholder="Search your home location"
+                  />
                 </div>
                 <DialogFooter className="mt-2">
                   <Button
@@ -374,6 +387,16 @@ export default function ProfilePage() {
                     {isLoading
                       ? "Loading..."
                       : displayOrFallback(user?.address)}
+                  </p>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <p className="text-[11px] text-muted-foreground">Coordinates</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {isLoading
+                      ? "Loading..."
+                      : user?.latitude != null && user?.longitude != null
+                        ? `${user.latitude.toFixed(5)}, ${user.longitude.toFixed(5)}`
+                        : "Not set"}
                   </p>
                 </div>
               </CardContent>
