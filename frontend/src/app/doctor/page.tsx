@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings2 } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts";
 import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
@@ -14,6 +15,12 @@ import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/apiClient";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "./calendar.css";
@@ -127,6 +134,21 @@ function DoctorDashboardInner() {
     );
   }).length;
 
+  const statusData = Object.entries(
+    appointments.reduce<Record<string, number>>((acc, appt) => {
+      const key = appt.status || "unknown";
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([label, value]) => ({ label, value }));
+
+  const weekdayOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const byWeekday = weekdayOrder.map((day) => ({ label: day, value: 0 }));
+  for (const appt of appointments) {
+    const idx = new Date(appt.startsAt).getDay();
+    byWeekday[idx].value += 1;
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 overflow-hidden">
       <RoleSidebar role="doctor" onLogout={handleLogout} />
@@ -194,6 +216,10 @@ function DoctorDashboardInner() {
 
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DoctorBarChart title="Appointments by weekday" data={byWeekday} />
+              <DoctorPieChart title="Appointment status" data={statusData} />
+            </div>
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold">
@@ -231,5 +257,67 @@ function DoctorDashboardInner() {
 
 export default function DoctorDashboardPage() {
   return <DoctorDashboardInner />;
+}
+
+function DoctorBarChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: Array<{ label: string; value: number }>;
+}) {
+  const config = {
+    value: { label: "Appointments", color: "var(--primary)" },
+  } satisfies ChartConfig;
+
+  return (
+    <Card className="border-border/80 bg-card/90 shadow-xs">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={config} className="h-44 w-full">
+          <BarChart data={data}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="value" fill="var(--chart-2)" radius={6} />
+          </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DoctorPieChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: Array<{ label: string; value: number }>;
+}) {
+  const config = {
+    value: { label: "Count", color: "var(--chart-2)" },
+  } satisfies ChartConfig;
+  const pieData = data.map((d, i) => ({
+    ...d,
+    fill: `var(--chart-${(i % 5) + 1})`,
+  }));
+
+  return (
+    <Card className="border-border/80 bg-card/90 shadow-xs">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={config} className="h-44 w-full">
+          <PieChart>
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Pie data={pieData} dataKey="value" nameKey="label" innerRadius={40} />
+          </PieChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
 }
 
