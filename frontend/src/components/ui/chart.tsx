@@ -55,11 +55,19 @@ export function ChartContainer({
 
 export const ChartTooltip = RechartsPrimitive.Tooltip;
 
+type TooltipPayloadItem = {
+  dataKey?: string | number;
+  name?: string | number;
+  value?: number | string | null;
+};
+
 export function ChartTooltipContent({
   active,
   payload,
   className,
-}: RechartsPrimitive.TooltipProps<number, string> & {
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
   className?: string;
 }) {
   const { config } = useChart();
