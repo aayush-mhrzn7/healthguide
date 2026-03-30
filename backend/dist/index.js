@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("./loadEnv");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const drizzle_orm_1 = require("drizzle-orm");
 const auth_1 = require("./routes/auth");
@@ -16,7 +16,6 @@ const assessments_1 = require("./routes/assessments");
 const doctors_1 = require("./routes/doctors");
 const client_1 = require("./db/client");
 const schema_1 = require("./db/schema");
-dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
     origin: "http://localhost:3000",
@@ -45,15 +44,13 @@ async function ensureAdminUser() {
         email: adminEmail,
         passwordHash,
         role: "admin",
+        emailVerified: true,
     });
 }
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
     console.log(`Backend listening on http://localhost:${PORT}`);
-    // Seed default admin user if not present
     void ensureAdminUser().catch((error) => {
-        // eslint-disable-next-line no-console
         console.error("Failed to ensure admin user", error);
     });
 });

@@ -1,11 +1,7 @@
 "use strict";
-/**
- * Quiz constants for disease prediction (server-side).
- * Mirrors frontend constants - used for assessment submission.
- */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_RECOMMENDATION = exports.DISEASE_SYMPTOM_MAP = exports.QUIZ_QUESTION_IDS = void 0;
-exports.QUIZ_QUESTION_IDS = [
+exports.DISEASE_TO_SPECIALTY = exports.DEFAULT_RECOMMENDATION = exports.DISEASE_SYMPTOM_MAP = exports.SYMPTOM_TO_ML_FEATURES = exports.QUIZ_QUESTION_IDS = exports.QUIZ_QUESTION_COUNT = exports.ALL_QUIZ_QUESTION_IDS = void 0;
+exports.ALL_QUIZ_QUESTION_IDS = [
     "fever",
     "cough",
     "headache",
@@ -19,6 +15,22 @@ exports.QUIZ_QUESTION_IDS = [
     "itchyEyes",
     "sneezing",
 ];
+exports.QUIZ_QUESTION_COUNT = Math.min(Number(process.env.QUIZ_QUESTION_COUNT ?? 12) || 12, exports.ALL_QUIZ_QUESTION_IDS.length);
+exports.QUIZ_QUESTION_IDS = exports.ALL_QUIZ_QUESTION_IDS.slice(0, exports.QUIZ_QUESTION_COUNT);
+exports.SYMPTOM_TO_ML_FEATURES = {
+    fever: ["high_fever", "mild_fever"],
+    cough: ["cough"],
+    headache: ["headache"],
+    soreThroat: ["patches_in_throat", "throat_irritation"],
+    runnyNose: ["runny_nose", "congestion"],
+    bodyAches: ["muscle_pain", "joint_pain"],
+    fatigue: ["fatigue", "lethargy", "malaise"],
+    nausea: ["nausea", "vomiting"],
+    shortnessOfBreath: ["breathlessness"],
+    chestPain: ["chest_pain"],
+    itchyEyes: ["redness_of_eyes", "watering_from_eyes"],
+    sneezing: ["continuous_sneezing"],
+};
 exports.DISEASE_SYMPTOM_MAP = [
     {
         disease: "Seasonal flu",
@@ -87,4 +99,47 @@ exports.DEFAULT_RECOMMENDATION = {
     disease: "General wellness check recommended",
     specialty: "general",
     confidence: "low",
+};
+exports.DISEASE_TO_SPECIALTY = {
+    "(vertigo) Paroymsal  Positional Vertigo": "general",
+    AIDS: "general",
+    Acne: "dermatology",
+    "Alcoholic hepatitis": "general",
+    Allergy: "allergy",
+    Arthritis: "general",
+    "Bronchial Asthma": "respiratory",
+    "Cervical spondylosis": "general",
+    "Chicken pox": "general",
+    "Chronic cholestasis": "general",
+    "Common Cold": "general",
+    Dengue: "general",
+    "Diabetes ": "general",
+    "Dimorphic hemmorhoids(piles)": "general",
+    "Drug Reaction": "general",
+    "Fungal infection": "dermatology",
+    GERD: "general",
+    Gastroenteritis: "general",
+    "Heart attack": "cardiology",
+    "Hepatitis B": "general",
+    "Hepatitis C": "general",
+    "Hepatitis D": "general",
+    "Hepatitis E": "general",
+    "Hypertension ": "cardiology",
+    Hyperthyroidism: "general",
+    Hypoglycemia: "general",
+    Hypothyroidism: "general",
+    Impetigo: "dermatology",
+    Jaundice: "general",
+    Malaria: "general",
+    Migraine: "general",
+    Osteoarthristis: "general",
+    "Paralysis (brain hemorrhage)": "general",
+    "Peptic ulcer diseae": "general",
+    Pneumonia: "respiratory",
+    Psoriasis: "dermatology",
+    Tuberculosis: "respiratory",
+    Typhoid: "general",
+    "Urinary tract infection": "general",
+    "Varicose veins": "general",
+    "hepatitis A": "general",
 };
