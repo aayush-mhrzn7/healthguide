@@ -8,6 +8,7 @@ import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
   type Event,
+  type View,
 } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 
@@ -54,10 +55,10 @@ function DoctorDashboardInner() {
   const router = useRouter();
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [view, setView] = useState<"month" | "week" | "day" | "agenda">("week");
+  const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
 
-  const onView = useCallback((newView: "month" | "week" | "day" | "agenda") => {
+  const onView = useCallback((newView: View) => {
     setView(newView);
   }, []);
 
