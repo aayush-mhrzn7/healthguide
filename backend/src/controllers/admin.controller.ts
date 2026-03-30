@@ -6,8 +6,10 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   appointments,
+  assessments,
   users,
   type DbAppointment,
+  type DbAssessment,
   type DbUser,
 } from "../db/schema";
 
@@ -24,6 +26,8 @@ const createDoctorSchema = z.object({
   email: z.string().email(),
   password: passwordSchema,
   clinicLocation: z.string().optional().nullable(),
+  clinicLatitude: z.number().finite().optional().nullable(),
+  clinicLongitude: z.number().finite().optional().nullable(),
   specialty: z
     .enum(["general", "respiratory", "allergy", "cardiology"])
     .optional()
@@ -40,7 +44,15 @@ export async function createDoctor(req: Request, res: Response) {
     });
   }
 
-  const { name, email, password, specialty, clinicLocation } = parseResult.data;
+  const {
+    name,
+    email,
+    password,
+    specialty,
+    clinicLocation,
+    clinicLatitude,
+    clinicLongitude,
+  } = parseResult.data;
 
   const existing = await db
     .select()
@@ -63,6 +75,8 @@ export async function createDoctor(req: Request, res: Response) {
       role: "doctor",
       specialty,
       address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
+      latitude: clinicLatitude ?? null,
+      longitude: clinicLongitude ?? null,
       emailVerified: true,
     })
     .returning();
@@ -75,28 +89,64 @@ export async function createDoctor(req: Request, res: Response) {
       role: doctor.role,
       specialty: doctor.specialty,
       clinicLocation: doctor.address,
+      clinicLatitude: doctor.latitude,
+      clinicLongitude: doctor.longitude,
     },
   });
 }
 
 export async function getAdminStats(_req: Request, res: Response) {
-  const [allUsers, doctors, allAppointments] = await Promise.all<
-    DbUser[] | DbAppointment[]
+  const [allUsers, doctors, allAppointments, allAssessments] = await Promise.all<
+    DbUser[] | DbAppointment[] | DbAssessment[]
   >([
     db.select().from(users),
     db.select().from(users).where(eq(users.role, "doctor")),
     db.select().from(appointments),
+    db.select().from(assessments),
   ]);
 
   const totalUsers = (allUsers as DbUser[]).length;
   const totalDoctors = (doctors as DbUser[]).length;
   const totalAppointments = (allAppointments as DbAppointment[]).length;
+  const assessmentRows = allAssessments as DbAssessment[];
+
+  const byDisease = new Map<string, number>();
+  const byConfidence = new Map<string, number>();
+  const byAppointmentStatus = new Map<string, number>();
+
+  for (const row of assessmentRows) {
+    byDisease.set(row.predictedDisease, (byDisease.get(row.predictedDisease) ?? 0) + 1);
+    byConfidence.set(row.confidence, (byConfidence.get(row.confidence) ?? 0) + 1);
+  }
+
+  for (const row of allAppointments as DbAppointment[]) {
+    const status = row.status || "unknown";
+    byAppointmentStatus.set(status, (byAppointmentStatus.get(status) ?? 0) + 1);
+  }
+
+  const diseaseDistribution = Array.from(byDisease.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+
+  const confidenceDistribution = ["high", "medium", "low"].map((key) => ({
+    label: key,
+    value: byConfidence.get(key) ?? 0,
+  }));
+
+  const appointmentStatusDistribution = Array.from(byAppointmentStatus.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
 
   return res.json({
     stats: {
       totalUsers,
       totalDoctors,
       totalAppointments,
+      totalAssessments: assessmentRows.length,
+      diseaseDistribution,
+      confidenceDistribution,
+      appointmentStatusDistribution,
     },
   });
 }
