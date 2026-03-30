@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Mail, MapPin, Phone, Stethoscope } from "lucide-react";
 
@@ -25,6 +26,7 @@ import {
 import { Avatar, getStoredAvatar } from "@/components/ui/Avatar";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { api } from "@/lib/apiClient";
+import { LocationPicker } from "@/components/location/LocationPicker";
 
 type ProfileUser = {
   id: string;
@@ -34,6 +36,8 @@ type ProfileUser = {
   bio: string | null;
   phone: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export default function DoctorProfilePage() {
@@ -46,6 +50,8 @@ export default function DoctorProfilePage() {
   const [formBio, setFormBio] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formAddress, setFormAddress] = useState("");
+  const [formLatitude, setFormLatitude] = useState<number | null>(null);
+  const [formLongitude, setFormLongitude] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +80,8 @@ export default function DoctorProfilePage() {
     setFormBio(user.bio ?? "");
     setFormPhone(user.phone ?? "");
     setFormAddress(user.address ?? "");
+    setFormLatitude(user.latitude ?? null);
+    setFormLongitude(user.longitude ?? null);
     setIsDialogOpen(true);
   };
 
@@ -85,10 +93,18 @@ export default function DoctorProfilePage() {
         bio: formBio || null,
         phone: formPhone || null,
         address: formAddress || null,
+        latitude: formLatitude,
+        longitude: formLongitude,
       });
       setUser(res.data.user);
       setIsDialogOpen(false);
+      toast.success("Profile updated", {
+        description: "Doctor profile saved successfully.",
+      });
     } catch {
+      toast.error("Profile update failed", {
+        description: "Could not save doctor profile.",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -187,18 +203,19 @@ export default function DoctorProfilePage() {
                       className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                     />
                   </div>
-                  <div className="grid gap-1 text-xs">
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      value={formAddress}
-                      onChange={(e) => setFormAddress(e.target.value)}
-                      placeholder="Clinic address"
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                    />
-                  </div>
+                  <LocationPicker
+                    label="Doctor's clinic location"
+                    address={formAddress}
+                    latitude={formLatitude}
+                    longitude={formLongitude}
+                    onAddressChange={setFormAddress}
+                    onLocationChange={({ address, latitude, longitude }) => {
+                      setFormAddress(address);
+                      setFormLatitude(latitude);
+                      setFormLongitude(longitude);
+                    }}
+                    placeholder="Search clinic location"
+                  />
                 </div>
                 <DialogFooter>
                   <Button size="sm" onClick={handleSave} disabled={isSaving}>
@@ -266,6 +283,13 @@ export default function DoctorProfilePage() {
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{isLoading ? "…" : display(user?.address)}</span>
+                </div>
+                <div className="sm:col-span-2 text-[11px] text-muted-foreground">
+                  {isLoading
+                    ? "…"
+                    : user?.latitude != null && user?.longitude != null
+                      ? `Lat/Lng: ${user.latitude.toFixed(5)}, ${user.longitude.toFixed(5)}`
+                      : "Lat/Lng: Not set"}
                 </div>
               </CardContent>
             </Card>
