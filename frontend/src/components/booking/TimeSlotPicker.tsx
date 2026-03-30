@@ -36,7 +36,7 @@ function isSlotBooked(
     const start = new Date(b.startsAt).getTime();
     const end = new Date(b.endsAt).getTime();
     const slotStart = slot.getTime();
-    return slotStart < end && slotEnd > start;
+    return slotStart < end && slotEnd.getTime() > start;
   });
 }
 
