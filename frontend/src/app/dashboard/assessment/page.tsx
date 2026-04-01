@@ -375,7 +375,7 @@ export default function AssessmentPage() {
                 Your results
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Based on your answers, here&apos;s what we found.
+                Based on your responses, here&apos;s a clear summary and doctor direction.
               </p>
             </header>
             <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
@@ -402,7 +402,7 @@ export default function AssessmentPage() {
                 }}
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-                Start a new assessment
+                Check another symptom area
               </Button>
             </section>
           </>
