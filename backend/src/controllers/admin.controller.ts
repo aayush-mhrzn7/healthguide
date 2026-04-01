@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/client";
 import {
@@ -147,6 +147,61 @@ export async function getAdminStats(_req: Request, res: Response) {
       diseaseDistribution,
       confidenceDistribution,
       appointmentStatusDistribution,
+    },
+  });
+}
+
+type ServiceHealth = {
+  status: "healthy" | "degraded";
+  latencyMs: number | null;
+};
+
+export async function getAdminHealth(_req: Request, res: Response) {
+  const startedAt = Date.now();
+  const mlApiUrl = process.env.ML_API_URL ?? "http://localhost:8001";
+
+  const dbHealthPromise = (async (): Promise<ServiceHealth> => {
+    const t0 = Date.now();
+    try {
+      await db.execute(sql`select 1`);
+      return { status: "healthy", latencyMs: Date.now() - t0 };
+    } catch {
+      return { status: "degraded", latencyMs: null };
+    }
+  })();
+
+  const modelHealthPromise = (async (): Promise<ServiceHealth> => {
+    const t0 = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(`${mlApiUrl.replace(/\/$/, "")}/health`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return { status: "degraded", latencyMs: Date.now() - t0 };
+      }
+
+      return { status: "healthy", latencyMs: Date.now() - t0 };
+    } catch {
+      return { status: "degraded", latencyMs: null };
+    }
+  })();
+
+  const [database, modelApi] = await Promise.all([dbHealthPromise, modelHealthPromise]);
+  const backendLatencyMs = Date.now() - startedAt;
+
+  return res.json({
+    health: {
+      backend: {
+        status: "healthy" as const,
+        latencyMs: backendLatencyMs,
+      },
+      database,
+      modelApi,
+      checkedAt: new Date().toISOString(),
     },
   });
 }

@@ -1,6 +1,10 @@
 import { Router } from "express";
 
-import { createDoctor, getAdminStats } from "../controllers/admin.controller";
+import {
+  createDoctor,
+  getAdminHealth,
+  getAdminStats,
+} from "../controllers/admin.controller";
 import { verifyJwt, requireRole } from "../middleware/verifyJwt";
 
 const adminRouter = Router();
@@ -13,6 +17,7 @@ adminRouter.post(
 );
 
 adminRouter.get("/stats", verifyJwt, requireRole(["admin"]), getAdminStats);
+adminRouter.get("/health", verifyJwt, requireRole(["admin"]), getAdminHealth);
 
 export { adminRouter };
 
