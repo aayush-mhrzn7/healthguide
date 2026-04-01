@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { CustomInput } from "@/components/form/customInput";
 import { PasswordInput } from "@/components/form/PasswordInput";
@@ -88,6 +89,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
       }
 
       const role = session.user.role;
+
+      toast.success(isSignup ? "Account created" : "Welcome back", {
+        description: isSignup
+          ? "You're all set. Taking you to your dashboard."
+          : `Logged in as ${session.user.name ?? session.user.email}.`,
+      });
 
       if (role === "admin") {
         router.push("/admin");
@@ -179,8 +186,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
           showRealtimeValidation={isSignup}
         />
 
-        <Button type="submit" className="mt-2 w-full h-9 text-sm font-semibold">
-          {isSignup ? "Create account" : "Log in"}
+        <Button
+          type="submit"
+          className="mt-2 w-full h-9 text-sm font-semibold"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isSignup ? "Creating account…" : "Logging in…"}
+            </>
+          ) : (
+            isSignup ? "Create account" : "Log in"
+          )}
         </Button>
       </Form>
     </div>
