@@ -3,7 +3,14 @@
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 
 import { Filter, Search } from "lucide-react";
 
@@ -16,12 +23,7 @@ import {
 import { api } from "@/lib/apiClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
 type AuthUser = {
   name?: string;
@@ -132,8 +134,8 @@ export default function DashboardPage() {
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <UserBarChart title="Top conditions" data={diseaseData} />
-              <UserPieChart title="Confidence mix" data={confidenceData} />
+              <UserLineChart title="Top conditions" data={diseaseData} color="var(--chart-1)" />
+              <UserLineChart title="Confidence mix" data={confidenceData} color="var(--chart-2)" />
             </div>
             <h5 className="font-bold text-xl ">My assessments</h5>
             <CardContent className="p-0">
@@ -155,16 +157,20 @@ export default function DashboardPage() {
   );
 }
 
-function UserBarChart({
+function UserLineChart({
   title,
   data,
+  color = "var(--chart-1)",
 }: {
   title: string;
   data: Array<{ label: string; value: number }>;
+  color?: string;
 }) {
   const config = {
-    value: { label: "Assessments", color: "var(--primary)" },
+    value: { label: "Count", color },
   } satisfies ChartConfig;
+
+  const id = `gradient-user-${title.replace(/\s/g, "")}`;
 
   return (
     <Card className="border-border/80 bg-card/90 shadow-xs">
@@ -173,49 +179,40 @@ function UserBarChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={config} className="h-44 w-full">
-          <BarChart data={data}>
-            <CartesianGrid vertical={false} />
+          <AreaChart data={data} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="10%" stopColor={color} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/60" />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => String(v).slice(0, 12)}
+              tick={{ fontSize: 10 }}
+              tickFormatter={(v) => String(v).slice(0, 10)}
             />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="value" fill="var(--chart-1)" radius={6} />
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  );
-}
-
-function UserPieChart({
-  title,
-  data,
-}: {
-  title: string;
-  data: Array<{ label: string; value: number }>;
-}) {
-  const config = {
-    value: { label: "Count", color: "var(--chart-1)" },
-  } satisfies ChartConfig;
-  const pieData = data.map((d, i) => ({
-    ...d,
-    fill: `var(--chart-${(i % 5) + 1})`,
-  }));
-
-  return (
-    <Card className="border-border/80 bg-card/90 shadow-xs">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={config} className="h-44 w-full">
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Pie data={pieData} dataKey="value" nameKey="label" innerRadius={40} />
-          </PieChart>
+            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{
+                background: "var(--popover)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                fontSize: "11px",
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#${id})`}
+              dot={{ r: 3, fill: color, strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+            />
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>
