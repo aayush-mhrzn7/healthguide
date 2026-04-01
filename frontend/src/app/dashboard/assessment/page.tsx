@@ -260,8 +260,8 @@ export default function AssessmentPage() {
                 What&apos;s been bothering you?
               </h1>
               <p className="mt-1.5 max-w-lg text-sm text-muted-foreground">
-                Pick the area that best matches what you&apos;re feeling. We&apos;ll run
-                a targeted assessment and point you to the right specialist.
+                Choose the closest area to your symptoms. We&apos;ll guide you with a
+                focused flow and recommend the right next step.
               </p>
             </header>
 
