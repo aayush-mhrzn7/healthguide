@@ -191,4 +191,8 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
 }
