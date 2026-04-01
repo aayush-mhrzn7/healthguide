@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings2 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
@@ -16,12 +23,7 @@ import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/apiClient";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "./calendar.css";
@@ -218,8 +220,8 @@ function DoctorDashboardInner() {
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <DoctorBarChart title="Appointments by weekday" data={byWeekday} />
-              <DoctorPieChart title="Appointment status" data={statusData} />
+              <DoctorLineChart title="Appointments by weekday" data={byWeekday} color="var(--chart-2)" />
+              <DoctorLineChart title="Appointment status" data={statusData} color="var(--chart-1)" />
             </div>
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-3">
@@ -260,16 +262,20 @@ export default function DoctorDashboardPage() {
   return <DoctorDashboardInner />;
 }
 
-function DoctorBarChart({
+function DoctorLineChart({
   title,
   data,
+  color = "var(--chart-2)",
 }: {
   title: string;
   data: Array<{ label: string; value: number }>;
+  color?: string;
 }) {
   const config = {
-    value: { label: "Appointments", color: "var(--primary)" },
+    value: { label: "Count", color },
   } satisfies ChartConfig;
+
+  const id = `gradient-doctor-${title.replace(/\s/g, "")}`;
 
   return (
     <Card className="border-border/80 bg-card/90 shadow-xs">
@@ -278,44 +284,34 @@ function DoctorBarChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={config} className="h-44 w-full">
-          <BarChart data={data}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="value" fill="var(--chart-2)" radius={6} />
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DoctorPieChart({
-  title,
-  data,
-}: {
-  title: string;
-  data: Array<{ label: string; value: number }>;
-}) {
-  const config = {
-    value: { label: "Count", color: "var(--chart-2)" },
-  } satisfies ChartConfig;
-  const pieData = data.map((d, i) => ({
-    ...d,
-    fill: `var(--chart-${(i % 5) + 1})`,
-  }));
-
-  return (
-    <Card className="border-border/80 bg-card/90 shadow-xs">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={config} className="h-44 w-full">
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Pie data={pieData} dataKey="value" nameKey="label" innerRadius={40} />
-          </PieChart>
+          <AreaChart data={data} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="10%" stopColor={color} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/60" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{
+                background: "var(--popover)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                fontSize: "11px",
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#${id})`}
+              dot={{ r: 3, fill: color, strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+            />
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>
