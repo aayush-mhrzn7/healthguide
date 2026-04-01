@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, Plus, UserCog, Users } from "lucide-react";
+import { Activity, Loader2, Plus, UserCog, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { toast } from "sonner";
 
@@ -20,6 +20,14 @@ import { useRouter } from "next/navigation";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { LocationPicker } from "@/components/location/LocationPicker";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type AdminStats = {
   totalUsers: number;
@@ -29,6 +37,18 @@ type AdminStats = {
   diseaseDistribution: Array<{ label: string; value: number }>;
   confidenceDistribution: Array<{ label: string; value: number }>;
   appointmentStatusDistribution: Array<{ label: string; value: number }>;
+};
+
+type HealthService = {
+  status: "healthy" | "degraded";
+  latencyMs: number | null;
+};
+
+type AdminHealth = {
+  backend: HealthService;
+  database: HealthService;
+  modelApi: HealthService;
+  checkedAt: string;
 };
 
 function MiniLineChart({
@@ -110,6 +130,7 @@ export default function AdminDashboardPage() {
 function AdminDashboardInner() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [health, setHealth] = useState<AdminHealth | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -119,20 +140,25 @@ function AdminDashboardInner() {
   const [clinicLongitude, setClinicLongitude] = useState<number | null>(null);
   const [specialty, setSpecialty] = useState("general");
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreateDoctorOpen, setIsCreateDoctorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadStats = async () => {
       try {
-        const response = await api.get<{ stats: AdminStats }>("/admin/stats");
+        const [statsResponse, healthResponse] = await Promise.all([
+          api.get<{ stats: AdminStats }>("/admin/stats"),
+          api.get<{ health: AdminHealth }>("/admin/health"),
+        ]);
         if (!isMounted) return;
-        setStats(response.data.stats);
+        setStats(statsResponse.data.stats);
+        setHealth(healthResponse.data.health);
       } catch {
         if (!isMounted) return;
         setStats(null);
+        setHealth(null);
       } finally {
         if (isMounted) {
           setIsLoadingStats(false);
@@ -149,7 +175,6 @@ function AdminDashboardInner() {
 
   const handleCreateDoctor = async () => {
     setError(null);
-    setSuccessMessage(null);
     setIsCreating(true);
 
     try {
@@ -163,7 +188,6 @@ function AdminDashboardInner() {
         specialty,
       });
 
-      setSuccessMessage("Doctor account created.");
       setName("");
       setEmail("");
       setPassword("");
@@ -171,6 +195,7 @@ function AdminDashboardInner() {
       setClinicLatitude(null);
       setClinicLongitude(null);
       setSpecialty("general");
+      setIsCreateDoctorOpen(false);
       toast.success("Doctor created", {
         description: "Doctor account was created successfully.",
       });
@@ -221,12 +246,173 @@ function AdminDashboardInner() {
                 Admin dashboard
               </h1>
               <p className="text-xs text-muted-foreground sm:text-sm">
-                Create doctor accounts and view key usage metrics.
+                View key usage metrics and platform health at a glance.
               </p>
             </div>
+            <Dialog open={isCreateDoctorOpen} onOpenChange={setIsCreateDoctorOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="h-8 gap-1 rounded-lg px-3 text-xs font-semibold">
+                  <Plus className="h-3.5 w-3.5" />
+                  Create doctor
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle className="text-base">Create a new doctor</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Add doctor credentials and clinic details.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-xs">
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="doctor-name"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Full name
+                    </label>
+                    <input
+                      id="doctor-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Dr. Jane Doe"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="doctor-email"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="doctor-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="doctor@example.com"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="doctor-password"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Temporary password (8+ chars, letters &amp; numbers)
+                    </label>
+                    <input
+                      id="doctor-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="e.g. Doctor123!"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                    {password && (
+                      <div className="flex flex-wrap gap-3 pt-1">
+                        <span
+                          className={
+                            password.length >= 8
+                              ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                              : "text-[11px] text-muted-foreground"
+                          }
+                        >
+                          {password.length >= 8 ? "✓" : "○"} 8+ characters
+                        </span>
+                        <span
+                          className={
+                            /(?=.*[A-Za-z])/.test(password)
+                              ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                              : "text-[11px] text-muted-foreground"
+                          }
+                        >
+                          {/(?=.*[A-Za-z])/.test(password) ? "✓" : "○"} Letter
+                        </span>
+                        <span
+                          className={
+                            /(?=.*\d)/.test(password)
+                              ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                              : "text-[11px] text-muted-foreground"
+                          }
+                        >
+                          {/(?=.*\d)/.test(password) ? "✓" : "○"} Number
+                        </span>
+                        <span
+                          className={
+                            /(?=.*[^A-Za-z\d])/.test(password)
+                              ? "text-[11px] text-emerald-600 dark:text-emerald-400"
+                              : "text-[11px] text-muted-foreground"
+                          }
+                        >
+                          {/(?=.*[^A-Za-z\d])/.test(password) ? "✓" : "○"} Symbol
+                          (optional)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <LocationPicker
+                    label="Doctor's clinic location"
+                    address={clinicLocation}
+                    latitude={clinicLatitude}
+                    longitude={clinicLongitude}
+                    onAddressChange={setClinicLocation}
+                    onLocationChange={({ address, latitude, longitude }) => {
+                      setClinicLocation(address);
+                      setClinicLatitude(latitude);
+                      setClinicLongitude(longitude);
+                    }}
+                    placeholder="Search clinic location"
+                  />
+                  <div className="grid gap-1">
+                    <label
+                      htmlFor="doctor-specialty"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Specialty
+                    </label>
+                    <select
+                      id="doctor-specialty"
+                      value={specialty}
+                      onChange={(e) => setSpecialty(e.target.value)}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="general">General</option>
+                      <option value="respiratory">Respiratory</option>
+                      <option value="allergy">Allergy</option>
+                      <option value="cardiology">Cardiology</option>
+                    </select>
+                  </div>
+                  {error && <p className="text-[11px] text-destructive">{error}</p>}
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1 rounded-lg px-3 text-xs font-semibold"
+                      onClick={handleCreateDoctor}
+                      disabled={isCreating}
+                    >
+                      {isCreating ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-3.5 w-3.5" />
+                          Create doctor
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -299,163 +485,57 @@ function AdminDashboardInner() {
         </header>
 
         <section className="flex flex-1 gap-0 px-6 pb-8 lg:px-8">
-          <div className="flex min-w-0 flex-1 flex-col gap-4 md:max-w-xl">
+          <div className="grid min-w-0 flex-1 gap-4 md:grid-cols-2">
             <Card className="border-border/80 bg-card/90 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">
-                  Create a new doctor
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Generate login credentials for a doctor to access their
-                  schedule.
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold">System health checks</CardTitle>
+                <CardDescription className="text-[11px]">
+                  Backend, database, and model API status with response latency.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="doctor-name"
-                    className="text-[11px] font-medium text-muted-foreground"
-                  >
-                    Full name
-                  </label>
-                  <input
-                    id="doctor-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Dr. Jane Doe"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="doctor-email"
-                    className="text-[11px] font-medium text-muted-foreground"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="doctor-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="doctor@example.com"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="doctor-password"
-                    className="text-[11px] font-medium text-muted-foreground"
-                  >
-                    Temporary password (8+ chars, letters &amp; numbers)
-                  </label>
-                  <input
-                    id="doctor-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="e.g. Doctor123!"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                  {password && (
-                    <div className="flex flex-wrap gap-3 pt-1">
-                      <span
-                        className={
-                          password.length >= 8
-                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
-                            : "text-[11px] text-muted-foreground"
-                        }
+              <CardContent className="space-y-3 pt-1">
+                {isLoadingStats ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : health ? (
+                  <>
+                    {[
+                      { label: "Backend API", service: health.backend },
+                      { label: "Database", service: health.database },
+                      { label: "Model API", service: health.modelApi },
+                    ].map(({ label, service }) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between rounded-md border border-border/60 bg-background/60 px-3 py-2"
                       >
-                        {password.length >= 8 ? "✓" : "○"} 8+ characters
-                      </span>
-                      <span
-                        className={
-                          /(?=.*[A-Za-z])/.test(password)
-                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
-                            : "text-[11px] text-muted-foreground"
-                        }
-                      >
-                        {/(?=.*[A-Za-z])/.test(password) ? "✓" : "○"} Letter
-                      </span>
-                      <span
-                        className={
-                          /(?=.*\d)/.test(password)
-                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
-                            : "text-[11px] text-muted-foreground"
-                        }
-                      >
-                        {/(?=.*\d)/.test(password) ? "✓" : "○"} Number
-                      </span>
-                      <span
-                        className={
-                          /(?=.*[^A-Za-z\d])/.test(password)
-                            ? "text-[11px] text-emerald-600 dark:text-emerald-400"
-                            : "text-[11px] text-muted-foreground"
-                        }
-                      >
-                        {/(?=.*[^A-Za-z\d])/.test(password) ? "✓" : "○"} Symbol
-                        (optional)
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <LocationPicker
-                  label="Doctor's clinic location"
-                  address={clinicLocation}
-                  latitude={clinicLatitude}
-                  longitude={clinicLongitude}
-                  onAddressChange={setClinicLocation}
-                  onLocationChange={({ address, latitude, longitude }) => {
-                    setClinicLocation(address);
-                    setClinicLatitude(latitude);
-                    setClinicLongitude(longitude);
-                  }}
-                  placeholder="Search clinic location"
-                />
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="doctor-specialty"
-                    className="text-[11px] font-medium text-muted-foreground"
-                  >
-                    Specialty
-                  </label>
-                  <select
-                    id="doctor-specialty"
-                    value={specialty}
-                    onChange={(e) => setSpecialty(e.target.value)}
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="general">General</option>
-                    <option value="respiratory">Respiratory</option>
-                    <option value="allergy">Allergy</option>
-                    <option value="cardiology">Cardiology</option>
-                  </select>
-                </div>
-                {error && (
-                  <p className="text-[11px] text-destructive">{error}</p>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              service.status === "healthy"
+                                ? "bg-emerald-500"
+                                : "bg-destructive"
+                            }`}
+                          />
+                          <span className="text-xs font-medium">{label}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-semibold">
+                            {service.status === "healthy" ? "Healthy" : "Degraded"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {service.latencyMs !== null ? `${service.latencyMs} ms` : "No response"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted-foreground">
+                      Checked: {new Date(health.checkedAt).toLocaleTimeString()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Could not load health checks.</p>
                 )}
-                {successMessage && (
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                    {successMessage}
-                  </p>
-                )}
-                <div className="pt-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 gap-1 rounded-lg px-3 text-xs font-semibold"
-                    onClick={handleCreateDoctor}
-                    disabled={isCreating}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {isCreating ? "Creating…" : "Create doctor"}
-                  </Button>
-                </div>
               </CardContent>
             </Card>
-          </div>
-          <div className="ml-0 mt-4 grid min-w-0 flex-1 gap-4 md:ml-6 md:mt-0 md:grid-cols-1 lg:grid-cols-1">
             <MiniLineChart
               title="Top predicted conditions"
               data={stats?.diseaseDistribution ?? []}
