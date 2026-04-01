@@ -8,3 +8,4 @@ const adminRouter = (0, express_1.Router)();
 exports.adminRouter = adminRouter;
 adminRouter.post("/doctors", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["admin"]), admin_controller_1.createDoctor);
 adminRouter.get("/stats", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["admin"]), admin_controller_1.getAdminStats);
+adminRouter.get("/health", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["admin"]), admin_controller_1.getAdminHealth);

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createDoctor = createDoctor;
 exports.getAdminStats = getAdminStats;
+exports.getAdminHealth = getAdminHealth;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -19,6 +20,8 @@ const createDoctorSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: passwordSchema,
     clinicLocation: zod_1.z.string().optional().nullable(),
+    clinicLatitude: zod_1.z.number().finite().optional().nullable(),
+    clinicLongitude: zod_1.z.number().finite().optional().nullable(),
     specialty: zod_1.z
         .enum(["general", "respiratory", "allergy", "cardiology"])
         .optional()
@@ -32,7 +35,7 @@ async function createDoctor(req, res) {
             issues: parseResult.error.flatten(),
         });
     }
-    const { name, email, password, specialty, clinicLocation } = parseResult.data;
+    const { name, email, password, specialty, clinicLocation, clinicLatitude, clinicLongitude, } = parseResult.data;
     const existing = await client_1.db
         .select()
         .from(schema_1.users)
@@ -51,6 +54,8 @@ async function createDoctor(req, res) {
         role: "doctor",
         specialty,
         address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
+        latitude: clinicLatitude ?? null,
+        longitude: clinicLongitude ?? null,
         emailVerified: true,
     })
         .returning();
@@ -62,6 +67,8 @@ async function createDoctor(req, res) {
             role: doctor.role,
             specialty: doctor.specialty,
             clinicLocation: doctor.address,
+            clinicLatitude: doctor.latitude,
+            clinicLongitude: doctor.longitude,
         },
     });
 }
@@ -107,6 +114,51 @@ async function getAdminStats(_req, res) {
             diseaseDistribution,
             confidenceDistribution,
             appointmentStatusDistribution,
+        },
+    });
+}
+async function getAdminHealth(_req, res) {
+    const startedAt = Date.now();
+    const mlApiUrl = process.env.ML_API_URL ?? "http://localhost:8001";
+    const dbHealthPromise = (async () => {
+        const t0 = Date.now();
+        try {
+            await client_1.db.execute((0, drizzle_orm_1.sql) `select 1`);
+            return { status: "healthy", latencyMs: Date.now() - t0 };
+        }
+        catch {
+            return { status: "degraded", latencyMs: null };
+        }
+    })();
+    const modelHealthPromise = (async () => {
+        const t0 = Date.now();
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${mlApiUrl.replace(/\/$/, "")}/health`, {
+                signal: controller.signal,
+            });
+            clearTimeout(timeout);
+            if (!response.ok) {
+                return { status: "degraded", latencyMs: Date.now() - t0 };
+            }
+            return { status: "healthy", latencyMs: Date.now() - t0 };
+        }
+        catch {
+            return { status: "degraded", latencyMs: null };
+        }
+    })();
+    const [database, modelApi] = await Promise.all([dbHealthPromise, modelHealthPromise]);
+    const backendLatencyMs = Date.now() - startedAt;
+    return res.json({
+        health: {
+            backend: {
+                status: "healthy",
+                latencyMs: backendLatencyMs,
+            },
+            database,
+            modelApi,
+            checkedAt: new Date().toISOString(),
         },
     });
 }

@@ -48,6 +48,8 @@ const updateProfileSchema = zod_1.z.object({
     bloodType: zod_1.z.string().optional().nullable(),
     phone: zod_1.z.string().optional().nullable(),
     address: zod_1.z.string().optional().nullable(),
+    latitude: zod_1.z.number().finite().optional().nullable(),
+    longitude: zod_1.z.number().finite().optional().nullable(),
     specialty: zod_1.z.string().optional().nullable(),
     bio: zod_1.z.string().optional().nullable(),
     preferredCommunication: zod_1.z.string().optional().nullable(),
@@ -101,6 +103,8 @@ function publicUserFields(user) {
         bloodType: user.bloodType,
         phone: user.phone,
         address: user.address,
+        latitude: user.latitude,
+        longitude: user.longitude,
         preferredCommunication: user.preferredCommunication,
         primaryCarePreference: user.primaryCarePreference,
     };
@@ -392,7 +396,7 @@ async function updateMe(req, res) {
             issues: parseResult.error.flatten(),
         });
     }
-    const { dateOfBirth, gender, bloodType, phone, address, specialty, bio, preferredCommunication, primaryCarePreference, } = parseResult.data;
+    const { dateOfBirth, gender, bloodType, phone, address, latitude, longitude, specialty, bio, preferredCommunication, primaryCarePreference, } = parseResult.data;
     const updateValues = {};
     if (typeof specialty !== "undefined") {
         updateValues.specialty =
@@ -435,6 +439,12 @@ async function updateMe(req, res) {
     if (typeof address !== "undefined") {
         updateValues.address =
             address && address.trim().length > 0 ? address.trim() : null;
+    }
+    if (typeof latitude !== "undefined") {
+        updateValues.latitude = latitude ?? null;
+    }
+    if (typeof longitude !== "undefined") {
+        updateValues.longitude = longitude ?? null;
     }
     const [updated] = await client_1.db
         .update(schema_1.users)

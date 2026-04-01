@@ -14,7 +14,6 @@ const submitAssessmentSchema = zod_1.z.object({
 });
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY?.trim();
-const QUIZ_FEATURE_COUNT = Math.min(Number(process.env.QUIZ_FEATURE_COUNT ?? 20) || 20, 60);
 let cachedMlFeatures = null;
 function titleCaseWords(value) {
     return value
@@ -78,25 +77,41 @@ async function fetchMlFeatures() {
     return featuresData.features;
 }
 function buildFallbackReasoning(prediction) {
-    const symptoms = prediction.selectedSymptoms.slice(0, 5).join(", ");
-    const alt = prediction.topPredictions
+    const symptomsList = prediction.selectedSymptoms.slice(0, 8);
+    const symptoms = symptomsList.join(", ");
+    const primary = prediction.topPredictions[0];
+    const alternatives = prediction.topPredictions
         .slice(1, 3)
-        .map((p) => p.disease)
-        .join(", ");
-    if (symptoms && alt) {
-        return `Based on symptoms such as ${symptoms}, the strongest match is ${prediction.disease}. Other possible conditions include ${alt}.`;
+        .map((p) => `${p.disease} (${Math.round(p.confidence * 100)}%)`);
+    if (prediction.confidence === "low") {
+        return [
+            `The model's highest-ranked match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}, but confidence is low due to overlap across conditions.`,
+            alternatives.length > 0
+                ? `We also considered ${alternatives.join(" and ")} while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`
+                : `We also considered multiple alternative conditions while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`,
+            "Use this as guidance only and confirm with a clinician.",
+        ].join(" ");
     }
-    if (symptoms) {
-        return `Based on symptoms such as ${symptoms}, the strongest match is ${prediction.disease}.`;
-    }
-    return `Based on your answers, the strongest match is ${prediction.disease}.`;
+    return [
+        `The highest-confidence pattern match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}.`,
+        symptoms
+            ? `Key signals included: ${symptoms}.`
+            : "The prediction is based on the full symptom profile you submitted.",
+        alternatives.length > 0
+            ? `Other considered possibilities were ${alternatives.join(" and ")}.`
+            : "Alternative differential possibilities were evaluated as lower-likelihood.",
+        "This is a triage aid, not a definitive diagnosis.",
+    ].join(" ");
 }
 async function generateReasoningWithGemini(prediction) {
     if (!GEMINI_API_KEY)
         return null;
     const prompt = [
         "You are a medical triage assistant.",
-        "Write 2 short sentences for a non-clinical user.",
+        "Write 3-4 concise but in-depth sentences for a non-clinical user.",
+        "Explain why the highest-ranked condition is strongest using symptom pattern language.",
+        "Always mention at least two alternatives considered.",
+        "If confidence is low, explicitly say confidence is low and alternatives remain plausible.",
         "Do not claim diagnosis certainty. Mention this is informational only.",
         `Top prediction: ${prediction.disease}`,
         `Confidence bucket: ${prediction.confidence}`,
@@ -113,7 +128,7 @@ async function generateReasoningWithGemini(prediction) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: 180 },
+                generationConfig: { temperature: 0.2, maxOutputTokens: 260 },
             }),
             signal: controller.signal,
         });
@@ -198,7 +213,7 @@ async function buildReasoning(prediction) {
 async function getQuizSymptoms(_req, res) {
     try {
         const features = await fetchMlFeatures();
-        const quizSymptoms = features.slice(0, QUIZ_FEATURE_COUNT).map((feature) => ({
+        const quizSymptoms = features.map((feature) => ({
             id: feature,
             symptomKey: feature,
             text: `Do you have ${titleCaseWords(feature).toLowerCase()}?`,
@@ -206,7 +221,14 @@ async function getQuizSymptoms(_req, res) {
         return res.json({ symptoms: quizSymptoms, source: "ml_features" });
     }
     catch {
-        const fallback = quiz_1.QUIZ_QUESTION_IDS.map((symptomKey) => ({
+        const fallbackSet = new Set();
+        for (const symptomKey of quiz_1.QUIZ_QUESTION_IDS)
+            fallbackSet.add(symptomKey);
+        for (const mapped of Object.values(quiz_1.SYMPTOM_TO_ML_FEATURES)) {
+            for (const value of mapped)
+                fallbackSet.add(value);
+        }
+        const fallback = Array.from(fallbackSet).map((symptomKey) => ({
             id: symptomKey,
             symptomKey,
             text: `Do you have ${titleCaseWords(symptomKey).toLowerCase()}?`,

@@ -17,6 +17,8 @@ exports.users = (0, pg_core_1.pgTable)("users", {
     bloodType: (0, pg_core_1.text)("blood_type"),
     phone: (0, pg_core_1.text)("phone"),
     address: (0, pg_core_1.text)("address"),
+    latitude: (0, pg_core_1.doublePrecision)("latitude"),
+    longitude: (0, pg_core_1.doublePrecision)("longitude"),
     preferredCommunication: (0, pg_core_1.text)("preferred_communication"),
     primaryCarePreference: (0, pg_core_1.text)("primary_care_preference"),
     createdAt: (0, pg_core_1.timestamp)("created_at", { mode: "date" })
