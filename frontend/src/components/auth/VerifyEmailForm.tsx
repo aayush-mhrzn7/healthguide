@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { CustomInput } from "@/components/form/customInput";
 import { Button } from "@/components/ui/button";
@@ -144,18 +145,30 @@ export function VerifyEmailForm() {
           maxLength={6}
         />
 
-        <Button type="submit" className="mt-2 w-full h-9 text-sm font-semibold">
-          Verify and continue
+        <Button
+          type="submit"
+          className="mt-2 w-full h-9 text-sm font-semibold"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Verifying…
+            </>
+          ) : (
+            "Verify and continue"
+          )}
         </Button>
       </Form>
 
       <div className="mt-4 flex flex-col gap-2 text-center text-xs text-muted-foreground">
         <button
           type="button"
-          className="text-primary underline-offset-4 hover:underline disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-1.5 text-primary underline-offset-4 hover:underline disabled:opacity-50"
           disabled={resending}
           onClick={() => void handleResend()}
         >
+          {resending && <Loader2 className="h-3 w-3 animate-spin" />}
           {resending ? "Sending…" : "Resend code"}
         </button>
         <button
