@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, Plus, UserCog, Users } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -19,12 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { LocationPicker } from "@/components/location/LocationPicker";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
 type AdminStats = {
   totalUsers: number;
@@ -36,19 +31,20 @@ type AdminStats = {
   appointmentStatusDistribution: Array<{ label: string; value: number }>;
 };
 
-function MiniBarChart({
+function MiniLineChart({
   title,
   data,
+  color = "var(--chart-1)",
 }: {
   title: string;
   data: Array<{ label: string; value: number }>;
+  color?: string;
 }) {
   const chartConfig = {
-    value: {
-      label: "Count",
-      color: "var(--primary)",
-    },
+    value: { label: "Count", color },
   } satisfies ChartConfig;
+
+  const id = `gradient-admin-${title.replace(/\s/g, "")}`;
 
   return (
     <Card className="border-border/80 bg-card/90 shadow-xs">
@@ -60,20 +56,42 @@ function MiniBarChart({
           <p className="text-xs text-muted-foreground">No data yet.</p>
         ) : (
           <ChartContainer config={chartConfig} className="h-52 w-full">
-            <BarChart data={data}>
-              <CartesianGrid vertical={false} />
+            <AreaChart data={data} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="10%" stopColor={color} stopOpacity={0.18} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/60" />
               <XAxis
                 dataKey="label"
                 tickLine={false}
                 axisLine={false}
                 interval={0}
-                tickMargin={8}
-                tickFormatter={(value) => String(value).slice(0, 14)}
+                tickMargin={6}
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => String(v).slice(0, 12)}
               />
-              <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" fill="var(--chart-1)" radius={6} />
-            </BarChart>
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={color}
+                strokeWidth={2}
+                fill={`url(#${id})`}
+                dot={{ r: 3, fill: color, strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+              />
+            </AreaChart>
           </ChartContainer>
         )}
       </CardContent>
@@ -438,17 +456,20 @@ function AdminDashboardInner() {
             </Card>
           </div>
           <div className="ml-0 mt-4 grid min-w-0 flex-1 gap-4 md:ml-6 md:mt-0 md:grid-cols-1 lg:grid-cols-1">
-            <MiniBarChart
+            <MiniLineChart
               title="Top predicted conditions"
               data={stats?.diseaseDistribution ?? []}
+              color="var(--chart-1)"
             />
-            <MiniBarChart
+            <MiniLineChart
               title="Assessment confidence"
               data={stats?.confidenceDistribution ?? []}
+              color="var(--chart-2)"
             />
-            <MiniBarChart
+            <MiniLineChart
               title="Appointment status"
               data={stats?.appointmentStatusDistribution ?? []}
+              color="var(--chart-3)"
             />
           </div>
         </section>
