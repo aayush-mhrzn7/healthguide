@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -152,25 +152,14 @@ export default function AssessmentPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingNextQuestion, setIsLoadingNextQuestion] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<QuizSymptom[]>(QUIZ_QUESTIONS);
+  const [questions, setQuestions] = useState<QuizSymptom[]>([]);
+  const [askedKeys, setAskedKeys] = useState<string[]>([]);
+  const maxQuestions = 30;
 
   const currentQuestion = questions[currentIndex];
-  const isLastQuestion = currentIndex === questions.length - 1;
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await api.get<{ symptoms: QuizSymptom[] }>(
-          "/assessments/symptoms",
-        );
-        if (res.data.symptoms?.length) {
-          setQuestions(res.data.symptoms);
-        }
-      } catch {}
-    })();
-  }, []);
 
   const submitAssessment = useCallback(
     async (finalAnswers: Record<string, boolean>) => {
@@ -200,28 +189,110 @@ export default function AssessmentPage() {
   );
 
   const handleCategorySelect = (category: DiseaseCategory) => {
-    setSelectedCategory(category);
-    setCurrentIndex(0);
-    setAnswers({});
-    setError(null);
-    setStep("quiz");
+    void (async () => {
+      setSelectedCategory(category);
+      setCurrentIndex(0);
+      setAnswers({});
+      setAskedKeys([]);
+      setQuestions([]);
+      setError(null);
+      setStep("quiz");
+      setIsLoadingNextQuestion(true);
+      try {
+        const res = await api.get<{ symptoms: QuizSymptom[] }>(
+          "/assessments/symptoms",
+          {
+            params: {
+              category: category.id,
+              asked: "",
+              positive: "",
+              limit: 1,
+            },
+          },
+        );
+        const firstQuestion =
+          res.data.symptoms?.[0] ??
+          QUIZ_QUESTIONS.find((q) => q.symptomKey) ??
+          null;
+        if (!firstQuestion) {
+          setError("Could not load quiz questions right now.");
+          return;
+        }
+        setQuestions([firstQuestion]);
+      } catch {
+        const fallback = QUIZ_QUESTIONS[0];
+        if (fallback) {
+          setQuestions([fallback]);
+          toast.message("Using fallback quiz", {
+            description: "Adaptive question service is unavailable right now.",
+          });
+        } else {
+          setError("Could not load quiz questions right now.");
+        }
+      } finally {
+        setIsLoadingNextQuestion(false);
+      }
+    })();
   };
 
   const handleAnswer = useCallback(
     (answer: boolean) => {
+      void (async () => {
       if (!currentQuestion) return;
       const newAnswers = {
         ...answers,
         [currentQuestion.symptomKey]: answer,
       };
       setAnswers(newAnswers);
-      if (isLastQuestion) {
+
+      const newAsked = [...askedKeys, currentQuestion.symptomKey];
+      setAskedKeys(newAsked);
+
+      if (newAsked.length >= maxQuestions) {
         submitAssessment(newAnswers);
-      } else {
-        setCurrentIndex((i) => i + 1);
+        return;
       }
+
+      setIsLoadingNextQuestion(true);
+      try {
+        const positive = Object.entries(newAnswers)
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(",");
+        const asked = newAsked.join(",");
+        const res = await api.get<{ symptoms: QuizSymptom[] }>(
+          "/assessments/symptoms",
+          {
+            params: {
+              category: selectedCategory?.id ?? "general",
+              asked,
+              positive,
+              limit: 1,
+            },
+          },
+        );
+        const next = res.data.symptoms?.[0];
+        if (!next) {
+          submitAssessment(newAnswers);
+          return;
+        }
+        setQuestions((prev) => [...prev, next]);
+        setCurrentIndex((i) => i + 1);
+      } catch {
+        submitAssessment(newAnswers);
+      } finally {
+        setIsLoadingNextQuestion(false);
+      }
+      })();
     },
-    [currentQuestion, answers, isLastQuestion, submitAssessment],
+    [
+      currentQuestion,
+      answers,
+      askedKeys,
+      maxQuestions,
+      submitAssessment,
+      selectedCategory?.id,
+    ],
   );
 
   const handleBookDoctor = () => {
@@ -338,19 +409,25 @@ export default function AssessmentPage() {
             <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
               <QuizProgress
                 current={currentIndex + 1}
-                total={questions.length}
+                total={maxQuestions}
               />
-              {currentQuestion && (
+              {isLoadingNextQuestion && !currentQuestion ? (
+                <Card className="max-w-xl border-border/70 bg-card/70">
+                  <CardContent className="py-6">
+                    <p className="text-xs text-muted-foreground">Loading your next question...</p>
+                  </CardContent>
+                </Card>
+              ) : currentQuestion ? (
                 <div className="max-w-xl">
                   <QuizQuestionCard
                     question={currentQuestion.text}
                     questionNumber={currentIndex + 1}
-                    totalQuestions={questions.length}
+                    totalQuestions={maxQuestions}
                     onAnswer={handleAnswer}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isLoadingNextQuestion}
                   />
                 </div>
-              )}
+              ) : null}
               {error && (
                 <Card className="max-w-xl border-destructive/50 bg-destructive/5">
                   <CardHeader>
@@ -398,6 +475,8 @@ export default function AssessmentPage() {
                   setStep("category");
                   setResult(null);
                   setAnswers({});
+                  setQuestions([]);
+                  setAskedKeys([]);
                   setCurrentIndex(0);
                 }}
               >

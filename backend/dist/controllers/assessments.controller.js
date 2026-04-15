@@ -14,6 +14,28 @@ const submitAssessmentSchema = zod_1.z.object({
 });
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY?.trim();
+const ADAPTIVE_LIMIT = 30;
+const CATEGORY_KEYWORDS = {
+    respiratory: ["cough", "breath", "wheez", "chest", "throat", "lung", "sneez", "cold"],
+    digestive: ["stomach", "abd", "nausea", "vomit", "diarr", "constip", "indigest", "acid"],
+    neurological: ["head", "migraine", "dizz", "neuro", "numb", "tingl", "memory", "seizure"],
+    cardiovascular: ["heart", "cardio", "pulse", "palpit", "bp", "pressure", "chest_pain"],
+    musculoskeletal: ["joint", "muscle", "back", "bone", "stiff", "swelling", "neck", "pain"],
+    skin: ["skin", "rash", "itch", "acne", "spot", "lesion", "redness"],
+    infectious: ["fever", "chills", "infection", "viral", "bacterial", "typhoid", "malaria"],
+    eyes: ["eye", "vision", "blur", "watery", "redness_of_eyes"],
+    ent: ["ear", "nose", "throat", "sinus", "tonsil", "sore_throat", "runny_nose"],
+    endocrine: ["thyroid", "sugar", "glucose", "hormone", "weight", "metabolism", "diabetes"],
+    urinary: ["urine", "kidney", "bladder", "burning_micturition", "urinary"],
+    general: [],
+};
+const FOLLOWUP_FAMILIES = [
+    { key: "fever_family", keywords: ["fever", "chills", "sweat"] },
+    { key: "resp_family", keywords: ["cough", "breath", "wheez", "throat"] },
+    { key: "digestive_family", keywords: ["nausea", "vomit", "stomach", "abd", "diarr"] },
+    { key: "neuro_family", keywords: ["head", "dizz", "seizure", "memory"] },
+    { key: "pain_family", keywords: ["pain", "ache", "stiff", "swelling"] },
+];
 let cachedMlFeatures = null;
 function titleCaseWords(value) {
     return value
@@ -22,6 +44,69 @@ function titleCaseWords(value) {
         .trim()
         .replace(/\s+/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function normalizeSymptomKey(value) {
+    return value
+        .replace(/([a-z])([A-Z])/g, "$1_$2")
+        .replace(/[.\s-]+/g, "_")
+        .toLowerCase();
+}
+function symptomTokens(value) {
+    return normalizeSymptomKey(value).split("_").filter(Boolean);
+}
+function belongsToCategory(feature, category) {
+    const keywords = CATEGORY_KEYWORDS[category] ?? [];
+    if (keywords.length === 0)
+        return true;
+    const key = normalizeSymptomKey(feature);
+    return keywords.some((kw) => key.includes(kw));
+}
+function sameFamily(featureA, featureB) {
+    const a = normalizeSymptomKey(featureA);
+    const b = normalizeSymptomKey(featureB);
+    return FOLLOWUP_FAMILIES.some((f) => f.keywords.some((kw) => a.includes(kw)) && f.keywords.some((kw) => b.includes(kw)));
+}
+function tokenOverlap(a, b) {
+    const aTokens = new Set(symptomTokens(a));
+    let overlap = 0;
+    for (const token of symptomTokens(b)) {
+        if (aTokens.has(token))
+            overlap += 1;
+    }
+    return overlap;
+}
+function rankAdaptiveSymptoms(params) {
+    const { allFeatures, category, positiveFeatures, askedFeatures, negativeFeatures, limit } = params;
+    const scored = allFeatures
+        .filter((feature) => !askedFeatures.has(feature))
+        .map((feature) => {
+        const baseWeight = 1;
+        const categoryBoost = belongsToCategory(feature, category) ? 5 : 0;
+        let followupBoost = 0;
+        for (const positive of positiveFeatures) {
+            const overlap = tokenOverlap(feature, positive);
+            if (overlap > 0) {
+                followupBoost += Math.min(6, overlap * 2);
+            }
+            if (sameFamily(feature, positive)) {
+                followupBoost += 2;
+            }
+        }
+        let contradictionPenalty = 0;
+        for (const negative of negativeFeatures) {
+            const overlap = tokenOverlap(feature, negative);
+            if (overlap > 0) {
+                contradictionPenalty += Math.min(8, overlap * 3);
+            }
+            if (sameFamily(feature, negative)) {
+                contradictionPenalty += 2;
+            }
+        }
+        const priorityScore = baseWeight + followupBoost + categoryBoost - contradictionPenalty;
+        return { feature, priorityScore };
+    })
+        .sort((a, b) => b.priorityScore - a.priorityScore);
+    return scored.slice(0, Math.max(1, Math.min(limit, ADAPTIVE_LIMIT))).map((x) => x.feature);
 }
 function buildSelectedSymptoms(answers) {
     const labels = new Set();
@@ -211,14 +296,35 @@ async function buildReasoning(prediction) {
     return gemini ?? buildFallbackReasoning(prediction);
 }
 async function getQuizSymptoms(_req, res) {
+    const reqQuery = _req.query ?? {};
+    const category = String(reqQuery.category ?? "general").trim().toLowerCase();
+    const askedFeatures = new Set(String(reqQuery.asked ?? "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean));
+    const positiveFeatures = new Set(String(reqQuery.positive ?? "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean));
+    const negativeFeatures = new Set(Array.from(askedFeatures).filter((x) => !positiveFeatures.has(x)));
+    const requestedLimit = Number(reqQuery.limit ?? ADAPTIVE_LIMIT);
+    const limit = Number.isFinite(requestedLimit) ? requestedLimit : ADAPTIVE_LIMIT;
     try {
         const features = await fetchMlFeatures();
-        const quizSymptoms = features.map((feature) => ({
+        const ranked = rankAdaptiveSymptoms({
+            allFeatures: features,
+            category,
+            positiveFeatures,
+            askedFeatures,
+            negativeFeatures,
+            limit,
+        });
+        const quizSymptoms = ranked.map((feature) => ({
             id: feature,
             symptomKey: feature,
             text: `Do you have ${titleCaseWords(feature).toLowerCase()}?`,
         }));
-        return res.json({ symptoms: quizSymptoms, source: "ml_features" });
+        return res.json({ symptoms: quizSymptoms, source: "adaptive_ml_features" });
     }
     catch {
         const fallbackSet = new Set();
@@ -228,7 +334,16 @@ async function getQuizSymptoms(_req, res) {
             for (const value of mapped)
                 fallbackSet.add(value);
         }
-        const fallback = Array.from(fallbackSet).map((symptomKey) => ({
+        const fallbackFeatures = Array.from(fallbackSet);
+        const rankedFallback = rankAdaptiveSymptoms({
+            allFeatures: fallbackFeatures,
+            category,
+            positiveFeatures,
+            askedFeatures,
+            negativeFeatures,
+            limit,
+        });
+        const fallback = rankedFallback.map((symptomKey) => ({
             id: symptomKey,
             symptomKey,
             text: `Do you have ${titleCaseWords(symptomKey).toLowerCase()}?`,
