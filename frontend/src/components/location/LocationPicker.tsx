@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,20 +38,98 @@ export function LocationPicker({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
+  const markerRef = useRef<import("leaflet").Marker | null>(null);
+  const leafletRef = useRef<typeof import("leaflet") | null>(null);
 
   useEffect(() => {
     setQuery(address);
   }, [address]);
 
-  const mapUrl = useMemo(() => {
+  const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
+    try {
+      const reverseRes = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lon))}`,
+      );
+      if (reverseRes.ok) {
+        const reverseData = (await reverseRes.json()) as { display_name?: string };
+        if (reverseData.display_name) return reverseData.display_name;
+      }
+    } catch {
+    }
+    return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+  };
+
+  const upsertMarker = async (lat: number, lon: number, withReverseGeocode: boolean) => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
+
+    if (!markerRef.current) {
+      markerRef.current = L.marker([lat, lon], {
+        draggable: true,
+      }).addTo(map);
+      markerRef.current.on("dragend", () => {
+        const pos = markerRef.current?.getLatLng();
+        if (!pos) return;
+        void upsertMarker(pos.lat, pos.lng, true);
+      });
+    } else {
+      markerRef.current.setLatLng([lat, lon]);
+    }
+
+    map.setView([lat, lon], Math.max(map.getZoom(), 13));
+
+    const resolvedAddress = withReverseGeocode
+      ? await reverseGeocode(lat, lon)
+      : query.trim() || address || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+    onLocationChange({
+      address: resolvedAddress,
+      latitude: lat,
+      longitude: lon,
+    });
+    setQuery(resolvedAddress);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      if (!mapContainerRef.current || mapRef.current) return;
+      const L = await import("leaflet");
+      if (!mounted || !mapContainerRef.current) return;
+      leafletRef.current = L;
+
+      const map = L.map(mapContainerRef.current).setView([20, 0], 2);
+      mapRef.current = map;
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      map.on("click", (e: import("leaflet").LeafletMouseEvent) => {
+        void upsertMarker(e.latlng.lat, e.latlng.lng, true);
+      });
+      setIsMapReady(true);
+    })();
+
+    return () => {
+      mounted = false;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMapReady || !mapRef.current) return;
     if (typeof latitude === "number" && typeof longitude === "number") {
-      return `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+      void upsertMarker(latitude, longitude, false);
     }
-    if (address.trim().length > 0) {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=13&output=embed`;
-    }
-    return "https://maps.google.com/maps?q=world&z=1&output=embed";
-  }, [address, latitude, longitude]);
+  }, [latitude, longitude, isMapReady]);
 
   const runSearch = async () => {
     const q = query.trim();
@@ -94,28 +172,7 @@ export function LocationPicker({
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
 
-      let resolvedAddress = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-      try {
-        const reverseRes = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lon))}`,
-        );
-        if (reverseRes.ok) {
-          const reverseData = (await reverseRes.json()) as {
-            display_name?: string;
-          };
-          if (reverseData.display_name) {
-            resolvedAddress = reverseData.display_name;
-          }
-        }
-      } catch {
-      }
-
-      onLocationChange({
-        address: resolvedAddress,
-        latitude: lat,
-        longitude: lon,
-      });
-      setQuery(resolvedAddress);
+      await upsertMarker(lat, lon, true);
       setResults([]);
     } catch {
     } finally {
@@ -174,11 +231,36 @@ export function LocationPicker({
                 const lat = Number(result.lat);
                 const lon = Number(result.lon);
                 const selectedAddress = result.display_name;
-                onLocationChange({
-                  address: selectedAddress,
-                  latitude: Number.isFinite(lat) ? lat : null,
-                  longitude: Number.isFinite(lon) ? lon : null,
-                });
+                if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                  onLocationChange({
+                    address: selectedAddress,
+                    latitude: lat,
+                    longitude: lon,
+                  });
+                  setQuery(selectedAddress);
+                  const map = mapRef.current;
+                  if (map) {
+                    if (!markerRef.current && leafletRef.current) {
+                      markerRef.current = leafletRef.current
+                        .marker([lat, lon], { draggable: true })
+                        .addTo(map);
+                      markerRef.current.on("dragend", () => {
+                        const pos = markerRef.current?.getLatLng();
+                        if (!pos) return;
+                        void upsertMarker(pos.lat, pos.lng, true);
+                      });
+                    } else {
+                      markerRef.current?.setLatLng([lat, lon]);
+                    }
+                    map.setView([lat, lon], 14);
+                  }
+                } else {
+                  onLocationChange({
+                    address: selectedAddress,
+                    latitude: null,
+                    longitude: null,
+                  });
+                }
                 setResults([]);
               }}
             >
@@ -190,14 +272,11 @@ export function LocationPicker({
       )}
 
       <div className="overflow-hidden rounded-md border border-border/70 bg-muted/20">
-        <iframe
-          title={`${label} map`}
-          src={mapUrl}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          className="h-44 w-full"
-        />
+        <div ref={mapContainerRef} className="h-44 w-full" />
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        Tip: click the map or drag the marker to fine-tune location.
+      </p>
       <p className="text-[11px] text-muted-foreground">
         Lat/Lng:{" "}
         {typeof latitude === "number" && typeof longitude === "number"
