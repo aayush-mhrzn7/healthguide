@@ -1,3 +1,11 @@
 .DS_Store
+
+# ML artefacts
 models/models_saved/model.joblib
 models/data/raw/training_data.backup.csv
+
+# Python tooling
+models/.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/

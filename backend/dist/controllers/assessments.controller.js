@@ -21,166 +21,13 @@ const submitAssessmentSchema = zod_1.z.object({
 });
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
 const ADAPTIVE_LIMIT = 30;
-const CATEGORY_KEYWORDS = {
-    respiratory: ["cough", "breath", "wheez", "chest", "throat", "lung", "sneez", "cold"],
-    digestive: ["stomach", "abd", "nausea", "vomit", "diarr", "constip", "indigest", "acid"],
-    neurological: ["head", "migraine", "dizz", "neuro", "numb", "tingl", "memory", "seizure"],
-    cardiovascular: ["heart", "cardio", "pulse", "palpit", "bp", "pressure", "chest_pain"],
-    musculoskeletal: ["joint", "muscle", "back", "bone", "stiff", "swelling", "neck", "pain"],
-    skin: ["skin", "rash", "itch", "acne", "spot", "lesion", "redness"],
-    infectious: ["fever", "chills", "infection", "viral", "bacterial", "typhoid", "malaria"],
-    eyes: ["eye", "vision", "blur", "watery", "redness_of_eyes"],
-    ent: ["ear", "nose", "throat", "sinus", "tonsil", "sore_throat", "runny_nose"],
-    endocrine: ["thyroid", "sugar", "glucose", "hormone", "weight", "metabolism", "diabetes"],
-    urinary: ["urine", "kidney", "bladder", "burning_micturition", "urinary"],
-    general: [],
-};
 const FOLLOWUP_FAMILIES = [
-    { key: "fever_family", keywords: ["fever", "chills", "sweat"] },
-    { key: "resp_family", keywords: ["cough", "breath", "wheez", "throat"] },
-    { key: "digestive_family", keywords: ["nausea", "vomit", "stomach", "abd", "diarr"] },
-    { key: "neuro_family", keywords: ["head", "dizz", "seizure", "memory"] },
-    { key: "pain_family", keywords: ["pain", "ache", "stiff", "swelling"] },
+    { key: "fever", keywords: ["fever", "chills", "sweat"] },
+    { key: "respiratory", keywords: ["cough", "breath", "wheez", "throat"] },
+    { key: "digestive", keywords: ["nausea", "vomit", "stomach", "abd", "diarr"] },
+    { key: "neurological", keywords: ["head", "dizz", "seizure", "memory"] },
+    { key: "pain", keywords: ["pain", "ache", "stiff", "swelling"] },
 ];
-const CATEGORY_DEFAULT_PREDICTIONS = {
-    eyes: [
-        { disease: "Allergy", confidence: 0.55 },
-        { disease: "Common Cold", confidence: 0.25 },
-        { disease: "Migraine", confidence: 0.2 },
-    ],
-    respiratory: [
-        { disease: "Bronchial Asthma", confidence: 0.45 },
-        { disease: "Common Cold", confidence: 0.35 },
-        { disease: "Pneumonia", confidence: 0.2 },
-    ],
-    digestive: [
-        { disease: "GERD", confidence: 0.4 },
-        { disease: "Gastroenteritis", confidence: 0.35 },
-        { disease: "Peptic ulcer diseae", confidence: 0.25 },
-    ],
-    neurological: [
-        { disease: "Migraine", confidence: 0.5 },
-        { disease: "(vertigo) Paroymsal  Positional Vertigo", confidence: 0.3 },
-        { disease: "Cervical spondylosis", confidence: 0.2 },
-    ],
-    cardiovascular: [
-        { disease: "Hypertension ", confidence: 0.45 },
-        { disease: "Heart attack", confidence: 0.35 },
-        { disease: "Varicose veins", confidence: 0.2 },
-    ],
-    musculoskeletal: [
-        { disease: "Arthritis", confidence: 0.4 },
-        { disease: "Osteoarthristis", confidence: 0.35 },
-        { disease: "Cervical spondylosis", confidence: 0.25 },
-    ],
-    skin: [
-        { disease: "Fungal infection", confidence: 0.35 },
-        { disease: "Acne", confidence: 0.3 },
-        { disease: "Psoriasis", confidence: 0.25 },
-    ],
-    infectious: [
-        { disease: "Dengue", confidence: 0.35 },
-        { disease: "Typhoid", confidence: 0.3 },
-        { disease: "Malaria", confidence: 0.25 },
-    ],
-    ent: [
-        { disease: "Common Cold", confidence: 0.45 },
-        { disease: "Allergy", confidence: 0.35 },
-        { disease: "Bronchial Asthma", confidence: 0.2 },
-    ],
-    endocrine: [
-        { disease: "Diabetes ", confidence: 0.4 },
-        { disease: "Hypothyroidism", confidence: 0.3 },
-        { disease: "Hyperthyroidism", confidence: 0.3 },
-    ],
-    urinary: [{ disease: "Urinary tract infection", confidence: 0.75 }],
-};
-function categoryMatchesDisease(category, disease) {
-    const normalizedCategory = category.trim().toLowerCase();
-    if (!normalizedCategory || normalizedCategory === "general")
-        return true;
-    const diseaseName = disease.toLowerCase();
-    const allowedDiseases = {
-        eyes: ["allergy", "common cold", "migraine", "dengue"],
-        respiratory: ["bronchial asthma", "pneumonia", "common cold", "tuberculosis", "allergy"],
-        digestive: [
-            "gerd",
-            "gastroenteritis",
-            "peptic ulcer",
-            "typhoid",
-            "jaundice",
-            "hepatitis",
-            "chronic cholestasis",
-        ],
-        neurological: ["migraine", "vertigo", "cervical spondylosis", "paralysis"],
-        cardiovascular: ["heart attack", "hypertension", "varicose veins"],
-        musculoskeletal: ["arthritis", "osteo", "spondylosis", "varicose veins"],
-        skin: ["fungal infection", "acne", "psoriasis", "impetigo", "drug reaction", "chicken pox"],
-        infectious: ["malaria", "dengue", "typhoid", "chicken pox", "tuberculosis", "aids"],
-        ent: ["common cold", "allergy", "tuberculosis", "pneumonia"],
-        endocrine: ["diabetes", "hypothyroidism", "hyperthyroidism", "hypoglycemia"],
-        urinary: ["urinary tract infection"],
-    };
-    if ((allowedDiseases[normalizedCategory] ?? []).some((allowed) => diseaseName.includes(allowed))) {
-        return true;
-    }
-    const keywords = {
-        respiratory: ["asthma", "pneumonia", "cold", "tuberculosis", "bronchial", "respiratory"],
-        digestive: ["gastro", "hepatitis", "jaundice", "ulcer", "vomit", "diarr", "stomach"],
-        neurological: ["migraine", "vertigo", "paralysis", "neuro", "brain"],
-        cardiovascular: ["heart", "hypertension", "cardio"],
-        musculoskeletal: ["arthritis", "spondyl", "osteo", "joint", "bone", "muscle"],
-        skin: ["fungal", "acne", "psoriasis", "impetigo", "skin", "allergy", "drug reaction"],
-        infectious: ["dengue", "malaria", "typhoid", "chicken pox", "infection", "viral"],
-        eyes: ["eye", "vision", "conjunct", "glaucoma", "cataract", "allergy", "migraine"],
-        ent: ["ear", "nose", "throat", "sinus", "tonsil"],
-        endocrine: ["diabetes", "thyroid", "hypoglycemia", "hormone", "metabolism"],
-        urinary: ["urinary", "kidney", "bladder", "renal"],
-    };
-    const byKeywords = keywords[normalizedCategory] ?? [];
-    if (byKeywords.some((kw) => diseaseName.includes(kw)))
-        return true;
-    const specialty = (quiz_1.DISEASE_TO_SPECIALTY[disease] ?? "general").toLowerCase();
-    const specialtyByCategory = {
-        respiratory: ["respiratory", "pulmonology"],
-        digestive: ["gastroenterology"],
-        neurological: ["neurology"],
-        cardiovascular: ["cardiology"],
-        musculoskeletal: ["orthopedics", "rheumatology"],
-        skin: ["dermatology", "allergy"],
-        infectious: ["infectious"],
-        eyes: ["ophthalmology", "allergy"],
-        ent: ["ent", "otolaryngology"],
-        endocrine: ["endocrinology"],
-        urinary: ["urology", "nephrology"],
-    };
-    const allowedSpecialties = specialtyByCategory[normalizedCategory] ?? ["general"];
-    return allowedSpecialties.some((allowed) => specialty.includes(allowed));
-}
-function alignPredictionToCategory(category, prediction) {
-    if (!category || category === "general")
-        return prediction;
-    const filtered = prediction.topPredictions.filter((p) => categoryMatchesDisease(category, p.disease));
-    if (filtered.length === 0) {
-        const fallback = CATEGORY_DEFAULT_PREDICTIONS[category.trim().toLowerCase()];
-        if (!fallback?.length)
-            return prediction;
-        return {
-            ...prediction,
-            disease: fallback[0].disease,
-            specialty: quiz_1.DISEASE_TO_SPECIALTY[fallback[0].disease] ?? prediction.specialty,
-            confidence: prediction.confidence === "high" ? "medium" : prediction.confidence,
-            topPredictions: fallback,
-        };
-    }
-    const best = filtered[0];
-    return {
-        ...prediction,
-        disease: best.disease,
-        specialty: quiz_1.DISEASE_TO_SPECIALTY[best.disease] ?? prediction.specialty,
-        topPredictions: filtered,
-    };
-}
 let cachedMlFeatures = null;
 let cachedCsvSymptoms = null;
 function titleCaseWords(value) {
@@ -204,19 +51,17 @@ function loadSymptomsFromTestCsv() {
         const csvPath = path_1.default.resolve(process.cwd(), "..", "models", "data", "raw", "test_data.csv");
         const file = fs_1.default.readFileSync(csvPath, "utf-8");
         const [headerLine] = file.split(/\r?\n/);
-        const byNormalizedKey = new Map();
+        const seen = new Map();
         for (const rawHeader of (headerLine ?? "").split(",")) {
             const raw = rawHeader.trim();
             if (!raw || raw === "prognosis")
                 continue;
-            byNormalizedKey.set(normalizeSymptomKey(raw), raw);
+            seen.set(normalizeSymptomKey(raw), raw);
         }
-        const parsed = Array.from(byNormalizedKey.values());
-        cachedCsvSymptoms = parsed;
-        return parsed;
+        cachedCsvSymptoms = Array.from(seen.values());
+        return cachedCsvSymptoms;
     }
     catch {
-        // Keep API functional if CSV is unavailable.
         return [];
     }
 }
@@ -224,8 +69,10 @@ function symptomTokens(value) {
     return normalizeSymptomKey(value).split("_").filter(Boolean);
 }
 function belongsToCategory(feature, category) {
-    const keywords = CATEGORY_KEYWORDS[category] ?? [];
-    if (keywords.length === 0)
+    if (category === "general")
+        return true;
+    const keywords = quiz_1.CATEGORY_KEYWORDS[category];
+    if (!keywords.length)
         return true;
     const key = normalizeSymptomKey(feature);
     return keywords.some((kw) => key.includes(kw));
@@ -254,25 +101,23 @@ function rankAdaptiveSymptoms(params) {
         let followupBoost = 0;
         for (const positive of positiveFeatures) {
             const overlap = tokenOverlap(feature, positive);
-            if (overlap > 0) {
+            if (overlap > 0)
                 followupBoost += Math.min(6, overlap * 2);
-            }
-            if (sameFamily(feature, positive)) {
+            if (sameFamily(feature, positive))
                 followupBoost += 2;
-            }
         }
         let contradictionPenalty = 0;
         for (const negative of negativeFeatures) {
             const overlap = tokenOverlap(feature, negative);
-            if (overlap > 0) {
+            if (overlap > 0)
                 contradictionPenalty += Math.min(8, overlap * 3);
-            }
-            if (sameFamily(feature, negative)) {
+            if (sameFamily(feature, negative))
                 contradictionPenalty += 2;
-            }
         }
-        const priorityScore = baseWeight + followupBoost + categoryBoost - contradictionPenalty;
-        return { feature, priorityScore };
+        return {
+            feature,
+            priorityScore: baseWeight + followupBoost + categoryBoost - contradictionPenalty,
+        };
     })
         .sort((a, b) => b.priorityScore - a.priorityScore);
     return scored.slice(0, Math.max(1, Math.min(limit, ADAPTIVE_LIMIT))).map((x) => x.feature);
@@ -280,42 +125,25 @@ function rankAdaptiveSymptoms(params) {
 function buildSelectedSymptoms(answers) {
     const labels = new Set();
     for (const [key, value] of Object.entries(answers)) {
-        if (!value)
-            continue;
-        labels.add(titleCaseWords(key));
-        const mapped = quiz_1.SYMPTOM_TO_ML_FEATURES[key];
-        if (mapped) {
-            for (const f of mapped)
-                labels.add(titleCaseWords(f));
-        }
+        if (value)
+            labels.add(titleCaseWords(key));
     }
     return Array.from(labels).slice(0, 12);
 }
-function getActiveMlFeatures(answers) {
-    const activeFeatures = new Set();
-    for (const [symptomKey, answered] of Object.entries(answers)) {
-        if (!answered)
-            continue;
-        const mapped = quiz_1.SYMPTOM_TO_ML_FEATURES[symptomKey];
-        if (mapped) {
-            for (const f of mapped)
-                activeFeatures.add(f);
-        }
-        else {
-            activeFeatures.add(symptomKey);
-        }
-    }
-    return activeFeatures;
-}
 function buildMlPayload(answers, allFeatureNames) {
-    const activeFeatures = getActiveMlFeatures(answers);
-    const activeNormalizedFeatures = new Set(Array.from(activeFeatures).map((feature) => normalizeSymptomKey(feature)));
+    const positiveExact = new Set();
+    const positiveNormalized = new Set();
+    for (const [key, value] of Object.entries(answers)) {
+        if (!value)
+            continue;
+        positiveExact.add(key);
+        positiveNormalized.add(normalizeSymptomKey(key));
+    }
     const payload = {};
     for (const feature of allFeatureNames) {
-        payload[feature] =
-            activeFeatures.has(feature) || activeNormalizedFeatures.has(normalizeSymptomKey(feature))
-                ? 1
-                : 0;
+        const isActive = positiveExact.has(feature) ||
+            positiveNormalized.has(normalizeSymptomKey(feature));
+        payload[feature] = isActive ? 1 : 0;
     }
     return payload;
 }
@@ -324,30 +152,33 @@ async function fetchMlFeatures() {
         return cachedMlFeatures.features;
     }
     const featuresRes = await fetch(`${ML_API_URL}/api/v1/features`);
-    if (!featuresRes.ok) {
+    if (!featuresRes.ok)
         throw new Error("ML features endpoint failed");
+    const data = (await featuresRes.json());
+    cachedMlFeatures = { features: data.features, expiresAt: Date.now() + 10 * 60 * 1000 };
+    return data.features;
+}
+function alignPredictionToCategory(category, prediction) {
+    if (category === "general")
+        return prediction;
+    const filtered = prediction.topPredictions.filter((p) => (0, quiz_1.diseaseMatchesCategory)(p.disease, category));
+    if (filtered.length === 0) {
+        // Trust the model: keep its top picks but downgrade confidence so the
+        // user (and the report) reflect the uncertainty.
+        return {
+            ...prediction,
+            confidence: prediction.confidence === "high" ? "medium" : "low",
+        };
     }
-    const featuresData = (await featuresRes.json());
-    cachedMlFeatures = {
-        features: featuresData.features,
-        expiresAt: Date.now() + 10 * 60 * 1000,
+    const best = filtered[0];
+    return {
+        ...prediction,
+        disease: best.disease,
+        specialty: (0, quiz_1.inferSpecialty)(best.disease),
+        topPredictions: filtered,
     };
-    return featuresData.features;
 }
-function getLocalAdaptiveFeatures() {
-    const localSet = new Set();
-    const csvSymptoms = loadSymptomsFromTestCsv();
-    for (const symptom of csvSymptoms)
-        localSet.add(symptom);
-    for (const symptomKey of quiz_1.QUIZ_QUESTION_IDS)
-        localSet.add(symptomKey);
-    for (const mapped of Object.values(quiz_1.SYMPTOM_TO_ML_FEATURES)) {
-        for (const value of mapped)
-            localSet.add(value);
-    }
-    return Array.from(localSet);
-}
-function buildFallbackReasoning(prediction) {
+function buildReasoning(prediction) {
     const symptomsList = prediction.selectedSymptoms.slice(0, 8);
     const symptoms = symptomsList.join(", ");
     const primary = prediction.topPredictions[0];
@@ -356,10 +187,10 @@ function buildFallbackReasoning(prediction) {
         .map((p) => `${p.disease} (${Math.round(p.confidence * 100)}%)`);
     if (prediction.confidence === "low") {
         return [
-            `The model's highest-ranked match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}, but confidence is low due to overlap across conditions.`,
+            `The model's highest-ranked match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}, but confidence is low because several conditions share this symptom pattern.`,
             alternatives.length > 0
-                ? `We also considered ${alternatives.join(" and ")} while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`
-                : `We also considered multiple alternative conditions while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`,
+                ? `We also considered ${alternatives.join(" and ")} while reviewing your responses${symptoms ? ` (${symptoms})` : ""}.`
+                : `We also considered alternative conditions while reviewing your responses${symptoms ? ` (${symptoms})` : ""}.`,
             "Use this as guidance only and confirm with a clinician.",
         ].join(" ");
     }
@@ -374,74 +205,39 @@ function buildFallbackReasoning(prediction) {
         "This is a triage aid, not a definitive diagnosis.",
     ].join(" ");
 }
-async function predictWithMlApi(answers, category = "general") {
+async function predictWithMlApi(answers, category) {
     const selectedSymptoms = buildSelectedSymptoms(answers);
-    try {
-        const features = await fetchMlFeatures();
-        const payload = buildMlPayload(answers, features);
-        const predictRes = await fetch(`${ML_API_URL}/api/v1/predict`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symptoms: payload, top_n: 12 }),
-        });
-        if (!predictRes.ok)
-            throw new Error("ML predict endpoint failed");
-        const prediction = (await predictRes.json());
-        const confidenceScore = prediction.confidence;
-        const confidenceLevel = confidenceScore >= 0.7
-            ? "high"
-            : confidenceScore >= 0.4
-                ? "medium"
-                : "low";
-        const rawPrediction = {
-            disease: prediction.predicted_disease,
-            specialty: quiz_1.DISEASE_TO_SPECIALTY[prediction.predicted_disease] ?? "general",
-            confidence: confidenceLevel,
-            topPredictions: (prediction.top_diseases || [])
-                .slice(0, 12)
-                .map((d) => ({ disease: d.disease, confidence: d.confidence })),
-            selectedSymptoms,
-        };
-        return alignPredictionToCategory(category, rawPrediction);
+    const features = await fetchMlFeatures();
+    const payload = buildMlPayload(answers, features);
+    const predictRes = await fetch(`${ML_API_URL}/api/v1/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symptoms: payload, top_n: 10 }),
+    });
+    if (!predictRes.ok) {
+        const detail = await predictRes.text();
+        throw new Error(`ML predict endpoint failed (${predictRes.status}): ${detail}`);
     }
-    catch {
-        return alignPredictionToCategory(category, predictDiseaseRuleBased(answers));
-    }
-}
-function predictDiseaseRuleBased(answers) {
-    const positiveSymptoms = new Set();
-    for (const id of quiz_1.QUIZ_QUESTION_IDS) {
-        const symptomKey = id;
-        if (answers[symptomKey] === true) {
-            positiveSymptoms.add(symptomKey);
-        }
-    }
-    for (const mapping of quiz_1.DISEASE_SYMPTOM_MAP) {
-        const hasAllRequired = mapping.requiredSymptoms.every((s) => positiveSymptoms.has(s));
-        if (hasAllRequired) {
-            return {
-                disease: mapping.disease,
-                specialty: mapping.specialty,
-                confidence: mapping.confidence,
-                topPredictions: [{ disease: mapping.disease, confidence: 0.72 }],
-                selectedSymptoms: buildSelectedSymptoms(answers),
-            };
-        }
-    }
-    return {
-        disease: quiz_1.DEFAULT_RECOMMENDATION.disease,
-        specialty: quiz_1.DEFAULT_RECOMMENDATION.specialty,
-        confidence: quiz_1.DEFAULT_RECOMMENDATION.confidence,
-        topPredictions: [{ disease: quiz_1.DEFAULT_RECOMMENDATION.disease, confidence: 0.35 }],
-        selectedSymptoms: buildSelectedSymptoms(answers),
+    const prediction = (await predictRes.json());
+    const score = prediction.confidence;
+    const confidenceLevel = score >= 0.7 ? "high" : score >= 0.4 ? "medium" : "low";
+    const rawPrediction = {
+        disease: prediction.predicted_disease,
+        specialty: (0, quiz_1.inferSpecialty)(prediction.predicted_disease),
+        confidence: confidenceLevel,
+        topPredictions: (prediction.top_diseases ?? [])
+            .slice(0, 12)
+            .map((d) => ({ disease: d.disease, confidence: d.confidence })),
+        selectedSymptoms,
     };
+    return alignPredictionToCategory(category, rawPrediction);
 }
-async function buildReasoning(prediction) {
-    return buildFallbackReasoning(prediction);
+function getLocalAdaptiveFeatures() {
+    return loadSymptomsFromTestCsv();
 }
-async function getQuizSymptoms(_req, res) {
-    const reqQuery = _req.query ?? {};
-    const category = String(reqQuery.category ?? "general").trim().toLowerCase();
+async function getQuizSymptoms(req, res) {
+    const reqQuery = req.query ?? {};
+    const category = (0, quiz_1.normalizeCategory)(String(reqQuery.category ?? "general"));
     const askedFeatures = new Set(String(reqQuery.asked ?? "")
         .split(",")
         .map((x) => x.trim())
@@ -454,15 +250,20 @@ async function getQuizSymptoms(_req, res) {
     const requestedLimit = Number(reqQuery.limit ?? ADAPTIVE_LIMIT);
     const limit = Number.isFinite(requestedLimit) ? requestedLimit : ADAPTIVE_LIMIT;
     const localFeatures = getLocalAdaptiveFeatures();
-    let source = "adaptive_local";
     let allFeatures = localFeatures;
+    let source = "csv";
     try {
         const mlFeatures = await fetchMlFeatures();
         allFeatures = Array.from(new Set([...localFeatures, ...mlFeatures]));
-        source = "adaptive_ml_enhanced";
+        source = "ml_enhanced";
     }
     catch {
-        // Keep quiz functional even when ML feature service is unavailable.
+        // Quiz still works from the CSV header even if the ML service is down.
+    }
+    if (allFeatures.length === 0) {
+        return res.status(503).json({
+            error: "Symptom catalog is not available right now.",
+        });
     }
     const ranked = rankAdaptiveSymptoms({
         allFeatures,
@@ -481,9 +282,8 @@ async function getQuizSymptoms(_req, res) {
 }
 async function submitAssessment(req, res) {
     const { authUser } = req;
-    if (!authUser) {
+    if (!authUser)
         return res.status(401).json({ error: "Unauthorized" });
-    }
     const parseResult = submitAssessmentSchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({
@@ -492,8 +292,18 @@ async function submitAssessment(req, res) {
         });
     }
     const { answers, category } = parseResult.data;
-    const prediction = await predictWithMlApi(answers, category ?? "general");
-    const reasoning = await buildReasoning(prediction);
+    const normalizedCategory = (0, quiz_1.normalizeCategory)(category);
+    let prediction;
+    try {
+        prediction = await predictWithMlApi(answers, normalizedCategory);
+    }
+    catch (err) {
+        return res.status(502).json({
+            error: "We couldn't reach the prediction service. Please try again in a moment.",
+            detail: err instanceof Error ? err.message : "ml_api_unavailable",
+        });
+    }
+    const reasoning = buildReasoning(prediction);
     const [created] = await client_1.db
         .insert(schema_1.assessments)
         .values({
@@ -522,9 +332,8 @@ async function submitAssessment(req, res) {
 }
 async function getUserAssessments(req, res) {
     const { authUser } = req;
-    if (!authUser) {
+    if (!authUser)
         return res.status(401).json({ error: "Unauthorized" });
-    }
     const rows = await client_1.db
         .select()
         .from(schema_1.assessments)
@@ -547,9 +356,8 @@ async function getUserAssessments(req, res) {
 }
 async function getAssessmentById(req, res) {
     const { authUser } = req;
-    if (!authUser) {
+    if (!authUser)
         return res.status(401).json({ error: "Unauthorized" });
-    }
     const assessmentId = Number(req.params.id);
     if (!Number.isInteger(assessmentId) || assessmentId <= 0) {
         return res.status(400).json({ error: "Invalid assessment id" });
@@ -559,9 +367,8 @@ async function getAssessmentById(req, res) {
         .from(schema_1.assessments)
         .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.assessments.id, assessmentId), (0, drizzle_orm_1.eq)(schema_1.assessments.userId, authUser.id)))
         .limit(1);
-    if (!row) {
+    if (!row)
         return res.status(404).json({ error: "Assessment not found" });
-    }
     return res.json({
         assessment: {
             id: row.id,
@@ -578,9 +385,8 @@ async function getAssessmentById(req, res) {
 }
 async function getDashboardSummary(req, res) {
     const { authUser } = req;
-    if (!authUser) {
+    if (!authUser)
         return res.status(401).json({ error: "Unauthorized" });
-    }
     const [lastCheckupRow] = await client_1.db
         .select()
         .from(schema_1.assessments)
@@ -589,10 +395,7 @@ async function getDashboardSummary(req, res) {
         .limit(1);
     const now = new Date();
     const upcomingRows = await client_1.db
-        .select({
-        appointment: schema_1.appointments,
-        doctor: schema_1.users,
-    })
+        .select({ appointment: schema_1.appointments, doctor: schema_1.users })
         .from(schema_1.appointments)
         .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.appointments.doctorId))
         .where((0, drizzle_orm_1.eq)(schema_1.appointments.patientId, authUser.id))

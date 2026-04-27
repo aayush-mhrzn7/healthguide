@@ -1,145 +1,117 @@
 "use strict";
+/**
+ * Lightweight category metadata used to:
+ *  - bias adaptive quiz question selection toward the chosen body system
+ *  - route ML predictions to the correct doctor specialty during booking
+ *
+ * Everything else (quiz questions, symptom→disease mappings, default
+ * predictions) is sourced dynamically from the ML feature service and the
+ * raw test_data.csv schema, so this file is intentionally small.
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DISEASE_TO_SPECIALTY = exports.DEFAULT_RECOMMENDATION = exports.DISEASE_SYMPTOM_MAP = exports.SYMPTOM_TO_ML_FEATURES = exports.QUIZ_QUESTION_IDS = exports.QUIZ_QUESTION_COUNT = exports.ALL_QUIZ_QUESTION_IDS = void 0;
-exports.ALL_QUIZ_QUESTION_IDS = [
-    "fever",
-    "cough",
-    "headache",
-    "soreThroat",
-    "runnyNose",
-    "bodyAches",
-    "fatigue",
-    "nausea",
-    "shortnessOfBreath",
-    "chestPain",
-    "itchyEyes",
-    "sneezing",
-];
-exports.QUIZ_QUESTION_COUNT = Math.min(Number(process.env.QUIZ_QUESTION_COUNT ?? 12) || 12, exports.ALL_QUIZ_QUESTION_IDS.length);
-exports.QUIZ_QUESTION_IDS = exports.ALL_QUIZ_QUESTION_IDS.slice(0, exports.QUIZ_QUESTION_COUNT);
-exports.SYMPTOM_TO_ML_FEATURES = {
-    fever: ["high_fever", "mild_fever"],
-    cough: ["cough"],
-    headache: ["headache"],
-    soreThroat: ["patches_in_throat", "throat_irritation"],
-    runnyNose: ["runny_nose", "congestion"],
-    bodyAches: ["muscle_pain", "joint_pain"],
-    fatigue: ["fatigue", "lethargy", "malaise"],
-    nausea: ["nausea", "vomiting"],
-    shortnessOfBreath: ["breathlessness"],
-    chestPain: ["chest_pain"],
-    itchyEyes: ["redness_of_eyes", "watering_from_eyes"],
-    sneezing: ["continuous_sneezing"],
+exports.CATEGORY_TO_SPECIALTY = exports.CATEGORY_KEYWORDS = void 0;
+exports.normalizeCategory = normalizeCategory;
+exports.diseaseMatchesCategory = diseaseMatchesCategory;
+exports.inferSpecialty = inferSpecialty;
+exports.CATEGORY_KEYWORDS = {
+    respiratory: [
+        "cough", "breath", "wheez", "chest_tight", "throat", "lung", "sneez",
+        "asthma", "pneumonia", "bronch", "tuberc", "respir", "sputum", "phlegm",
+        "rapid_breathing", "post_nasal_drip",
+    ],
+    digestive: [
+        "stomach", "abd", "abdomen", "nausea", "vomit", "diarr", "constip",
+        "indigest", "acid", "reflux", "gerd", "hepatit", "jaund", "ulcer",
+        "liver", "piles", "hemorrh", "bowel", "appet", "epigastric", "cholestasis",
+    ],
+    neurological: [
+        "head", "migraine", "dizz", "neuro", "numb", "tingl", "memory", "seizure",
+        "balance", "brain", "paralys", "vertigo", "tremor", "speech",
+        "facial_droop", "concentration", "brain_fog",
+    ],
+    cardiovascular: [
+        "heart", "cardio", "pulse", "palpit", "bp", "pressure", "chest_pain",
+        "cardiac", "hypertens", "ankle_swell", "orthopnea", "syncope", "varicose",
+        "edema", "exertion", "left_arm",
+    ],
+    musculoskeletal: [
+        "joint", "muscle", "back", "bone", "stiff", "spondyl", "osteo", "arthrit",
+        "knee", "shoulder", "hip", "wrist", "ankle_pain", "movement_stiffness",
+        "range_motion", "pain_walking", "pain_bending",
+    ],
+    skin: [
+        "skin", "rash", "itch", "acne", "spot", "lesion", "redness", "peeling",
+        "blister", "psoriasis", "fungal", "impetigo", "eczema", "hives", "scaling",
+        "ringworm", "pigmentation",
+    ],
+    infectious: [
+        "fever", "chills", "infect", "viral", "bacter", "typhoid", "malaria",
+        "dengue", "aids", "sweats", "malaise", "weakness", "petechiae",
+        "swollen_glands", "post_fever",
+    ],
+    eyes: [
+        "eye", "vision", "blur", "watery_eyes", "conjunct", "glaucoma", "cataract",
+        "retina", "pupil", "light_sensitivity", "halo", "floaters", "gritty",
+        "eyelid",
+    ],
+    ent: [
+        "ear", "nose", "throat", "sinus", "tonsil", "sore_throat", "runny_nose",
+        "hearing", "tinnitus", "allergy", "voice", "snoring", "swallow",
+    ],
+    endocrine: [
+        "thyroid", "sugar", "glucose", "hormone", "weight", "metabol", "diabet",
+        "hypoglycem", "hunger", "thirst", "menstrual", "cold_intolerance",
+        "heat_intolerance", "hair_thinning",
+    ],
+    urinary: [
+        "urin", "kidney", "bladder", "renal", "micturition", "pelvic", "urethr",
+        "flank", "groin", "void", "stream",
+    ],
+    general: [],
 };
-exports.DISEASE_SYMPTOM_MAP = [
-    {
-        disease: "Seasonal flu",
-        specialty: "general",
-        requiredSymptoms: ["fever", "cough", "bodyAches"],
-        optionalSymptoms: ["headache", "fatigue", "soreThroat", "runnyNose"],
-        confidence: "high",
-    },
-    {
-        disease: "Common cold",
-        specialty: "general",
-        requiredSymptoms: ["runnyNose", "soreThroat"],
-        optionalSymptoms: ["cough", "sneezing", "headache", "fatigue"],
-        confidence: "high",
-    },
-    {
-        disease: "COVID-19 (suspected)",
-        specialty: "respiratory",
-        requiredSymptoms: ["fever", "cough"],
-        optionalSymptoms: [
-            "shortnessOfBreath",
-            "fatigue",
-            "bodyAches",
-            "soreThroat",
-            "headache",
-        ],
-        confidence: "medium",
-    },
-    {
-        disease: "Respiratory infection",
-        specialty: "respiratory",
-        requiredSymptoms: ["cough", "shortnessOfBreath"],
-        optionalSymptoms: ["fever", "chestPain", "fatigue"],
-        confidence: "medium",
-    },
-    {
-        disease: "Migraine",
-        specialty: "general",
-        requiredSymptoms: ["headache"],
-        optionalSymptoms: ["nausea", "fatigue"],
-        confidence: "medium",
-    },
-    {
-        disease: "Allergic rhinitis",
-        specialty: "allergy",
-        requiredSymptoms: ["itchyEyes", "sneezing"],
-        optionalSymptoms: ["runnyNose", "cough"],
-        confidence: "high",
-    },
-    {
-        disease: "Stomach flu / Gastroenteritis",
-        specialty: "general",
-        requiredSymptoms: ["nausea"],
-        optionalSymptoms: ["fatigue", "bodyAches", "fever"],
-        confidence: "medium",
-    },
-    {
-        disease: "General fatigue / Stress",
-        specialty: "general",
-        requiredSymptoms: ["fatigue"],
-        optionalSymptoms: ["headache", "bodyAches"],
-        confidence: "low",
-    },
-];
-exports.DEFAULT_RECOMMENDATION = {
-    disease: "General wellness check recommended",
-    specialty: "general",
-    confidence: "low",
+exports.CATEGORY_TO_SPECIALTY = {
+    respiratory: "respiratory",
+    digestive: "gastroenterology",
+    neurological: "neurology",
+    cardiovascular: "cardiology",
+    musculoskeletal: "orthopedics",
+    skin: "dermatology",
+    infectious: "internal_medicine",
+    eyes: "ophthalmology",
+    ent: "ent",
+    endocrine: "endocrinology",
+    urinary: "urology",
+    general: "general",
 };
-exports.DISEASE_TO_SPECIALTY = {
-    "(vertigo) Paroymsal  Positional Vertigo": "general",
-    AIDS: "general",
-    Acne: "dermatology",
-    "Alcoholic hepatitis": "general",
-    Allergy: "allergy",
-    Arthritis: "general",
-    "Bronchial Asthma": "respiratory",
-    "Cervical spondylosis": "general",
-    "Chicken pox": "general",
-    "Chronic cholestasis": "general",
-    "Common Cold": "general",
-    Dengue: "general",
-    "Diabetes ": "general",
-    "Dimorphic hemmorhoids(piles)": "general",
-    "Drug Reaction": "general",
-    "Fungal infection": "dermatology",
-    GERD: "general",
-    Gastroenteritis: "general",
-    "Heart attack": "cardiology",
-    "Hepatitis B": "general",
-    "Hepatitis C": "general",
-    "Hepatitis D": "general",
-    "Hepatitis E": "general",
-    "Hypertension ": "cardiology",
-    Hyperthyroidism: "general",
-    Hypoglycemia: "general",
-    Hypothyroidism: "general",
-    Impetigo: "dermatology",
-    Jaundice: "general",
-    Malaria: "general",
-    Migraine: "general",
-    Osteoarthristis: "general",
-    "Paralysis (brain hemorrhage)": "general",
-    "Peptic ulcer diseae": "general",
-    Pneumonia: "respiratory",
-    Psoriasis: "dermatology",
-    Tuberculosis: "respiratory",
-    Typhoid: "general",
-    "Urinary tract infection": "general",
-    "Varicose veins": "general",
-    "hepatitis A": "general",
-};
+function normalizeCategory(value) {
+    const v = (value ?? "").trim().toLowerCase();
+    if (v in exports.CATEGORY_KEYWORDS)
+        return v;
+    return "general";
+}
+function diseaseMatchesCategory(disease, category) {
+    const cat = normalizeCategory(category);
+    if (cat === "general")
+        return true;
+    const keywords = exports.CATEGORY_KEYWORDS[cat];
+    if (!keywords.length)
+        return true;
+    const name = disease.toLowerCase();
+    return keywords.some((kw) => name.includes(kw));
+}
+/**
+ * Infer a doctor specialty from a disease name using the same keyword index.
+ * Falls back to "general" so booking always has a valid value.
+ */
+function inferSpecialty(disease) {
+    const name = disease.toLowerCase();
+    for (const category of Object.keys(exports.CATEGORY_KEYWORDS)) {
+        if (category === "general")
+            continue;
+        const keywords = exports.CATEGORY_KEYWORDS[category];
+        if (keywords.some((kw) => name.includes(kw))) {
+            return exports.CATEGORY_TO_SPECIALTY[category];
+        }
+    }
+    return "general";
+}

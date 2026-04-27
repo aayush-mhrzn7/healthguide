@@ -8,12 +8,11 @@ import { db } from "../db/client";
 import { assessments, appointments, users } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
 import {
-  DISEASE_SYMPTOM_MAP,
-  DEFAULT_RECOMMENDATION,
-  QUIZ_QUESTION_IDS,
-  SYMPTOM_TO_ML_FEATURES,
-  DISEASE_TO_SPECIALTY,
-  type SymptomKey,
+  CATEGORY_KEYWORDS,
+  diseaseMatchesCategory,
+  inferSpecialty,
+  normalizeCategory,
+  type Category,
 } from "../constants/quiz";
 
 const submitAssessmentSchema = z.object({
@@ -22,6 +21,7 @@ const submitAssessmentSchema = z.object({
 });
 
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
+const ADAPTIVE_LIMIT = 30;
 
 type MlPredictResponse = {
   predicted_disease: string;
@@ -34,31 +34,6 @@ type MlFeaturesResponse = {
   count: number;
 };
 
-const ADAPTIVE_LIMIT = 30;
-
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  respiratory: ["cough", "breath", "wheez", "chest", "throat", "lung", "sneez", "cold"],
-  digestive: ["stomach", "abd", "nausea", "vomit", "diarr", "constip", "indigest", "acid"],
-  neurological: ["head", "migraine", "dizz", "neuro", "numb", "tingl", "memory", "seizure"],
-  cardiovascular: ["heart", "cardio", "pulse", "palpit", "bp", "pressure", "chest_pain"],
-  musculoskeletal: ["joint", "muscle", "back", "bone", "stiff", "swelling", "neck", "pain"],
-  skin: ["skin", "rash", "itch", "acne", "spot", "lesion", "redness"],
-  infectious: ["fever", "chills", "infection", "viral", "bacterial", "typhoid", "malaria"],
-  eyes: ["eye", "vision", "blur", "watery", "redness_of_eyes"],
-  ent: ["ear", "nose", "throat", "sinus", "tonsil", "sore_throat", "runny_nose"],
-  endocrine: ["thyroid", "sugar", "glucose", "hormone", "weight", "metabolism", "diabetes"],
-  urinary: ["urine", "kidney", "bladder", "burning_micturition", "urinary"],
-  general: [],
-};
-
-const FOLLOWUP_FAMILIES: Array<{ key: string; keywords: string[] }> = [
-  { key: "fever_family", keywords: ["fever", "chills", "sweat"] },
-  { key: "resp_family", keywords: ["cough", "breath", "wheez", "throat"] },
-  { key: "digestive_family", keywords: ["nausea", "vomit", "stomach", "abd", "diarr"] },
-  { key: "neuro_family", keywords: ["head", "dizz", "seizure", "memory"] },
-  { key: "pain_family", keywords: ["pain", "ache", "stiff", "swelling"] },
-];
-
 type PredictionResult = {
   disease: string;
   specialty: string;
@@ -67,156 +42,15 @@ type PredictionResult = {
   selectedSymptoms: string[];
 };
 
-const CATEGORY_DEFAULT_PREDICTIONS: Record<
-  string,
-  Array<{ disease: string; confidence: number }>
-> = {
-  eyes: [
-    { disease: "Allergy", confidence: 0.55 },
-    { disease: "Common Cold", confidence: 0.25 },
-    { disease: "Migraine", confidence: 0.2 },
-  ],
-  respiratory: [
-    { disease: "Bronchial Asthma", confidence: 0.45 },
-    { disease: "Common Cold", confidence: 0.35 },
-    { disease: "Pneumonia", confidence: 0.2 },
-  ],
-  digestive: [
-    { disease: "GERD", confidence: 0.4 },
-    { disease: "Gastroenteritis", confidence: 0.35 },
-    { disease: "Peptic ulcer diseae", confidence: 0.25 },
-  ],
-  neurological: [
-    { disease: "Migraine", confidence: 0.5 },
-    { disease: "(vertigo) Paroymsal  Positional Vertigo", confidence: 0.3 },
-    { disease: "Cervical spondylosis", confidence: 0.2 },
-  ],
-  cardiovascular: [
-    { disease: "Hypertension ", confidence: 0.45 },
-    { disease: "Heart attack", confidence: 0.35 },
-    { disease: "Varicose veins", confidence: 0.2 },
-  ],
-  musculoskeletal: [
-    { disease: "Arthritis", confidence: 0.4 },
-    { disease: "Osteoarthristis", confidence: 0.35 },
-    { disease: "Cervical spondylosis", confidence: 0.25 },
-  ],
-  skin: [
-    { disease: "Fungal infection", confidence: 0.35 },
-    { disease: "Acne", confidence: 0.3 },
-    { disease: "Psoriasis", confidence: 0.25 },
-  ],
-  infectious: [
-    { disease: "Dengue", confidence: 0.35 },
-    { disease: "Typhoid", confidence: 0.3 },
-    { disease: "Malaria", confidence: 0.25 },
-  ],
-  ent: [
-    { disease: "Common Cold", confidence: 0.45 },
-    { disease: "Allergy", confidence: 0.35 },
-    { disease: "Bronchial Asthma", confidence: 0.2 },
-  ],
-  endocrine: [
-    { disease: "Diabetes ", confidence: 0.4 },
-    { disease: "Hypothyroidism", confidence: 0.3 },
-    { disease: "Hyperthyroidism", confidence: 0.3 },
-  ],
-  urinary: [{ disease: "Urinary tract infection", confidence: 0.75 }],
-};
+type QuestionFamily = { key: string; keywords: string[] };
 
-function categoryMatchesDisease(category: string, disease: string): boolean {
-  const normalizedCategory = category.trim().toLowerCase();
-  if (!normalizedCategory || normalizedCategory === "general") return true;
-
-  const diseaseName = disease.toLowerCase();
-  const allowedDiseases: Record<string, string[]> = {
-    eyes: ["allergy", "common cold", "migraine", "dengue"],
-    respiratory: ["bronchial asthma", "pneumonia", "common cold", "tuberculosis", "allergy"],
-    digestive: [
-      "gerd",
-      "gastroenteritis",
-      "peptic ulcer",
-      "typhoid",
-      "jaundice",
-      "hepatitis",
-      "chronic cholestasis",
-    ],
-    neurological: ["migraine", "vertigo", "cervical spondylosis", "paralysis"],
-    cardiovascular: ["heart attack", "hypertension", "varicose veins"],
-    musculoskeletal: ["arthritis", "osteo", "spondylosis", "varicose veins"],
-    skin: ["fungal infection", "acne", "psoriasis", "impetigo", "drug reaction", "chicken pox"],
-    infectious: ["malaria", "dengue", "typhoid", "chicken pox", "tuberculosis", "aids"],
-    ent: ["common cold", "allergy", "tuberculosis", "pneumonia"],
-    endocrine: ["diabetes", "hypothyroidism", "hyperthyroidism", "hypoglycemia"],
-    urinary: ["urinary tract infection"],
-  };
-  if ((allowedDiseases[normalizedCategory] ?? []).some((allowed) => diseaseName.includes(allowed))) {
-    return true;
-  }
-
-  const keywords: Record<string, string[]> = {
-    respiratory: ["asthma", "pneumonia", "cold", "tuberculosis", "bronchial", "respiratory"],
-    digestive: ["gastro", "hepatitis", "jaundice", "ulcer", "vomit", "diarr", "stomach"],
-    neurological: ["migraine", "vertigo", "paralysis", "neuro", "brain"],
-    cardiovascular: ["heart", "hypertension", "cardio"],
-    musculoskeletal: ["arthritis", "spondyl", "osteo", "joint", "bone", "muscle"],
-    skin: ["fungal", "acne", "psoriasis", "impetigo", "skin", "allergy", "drug reaction"],
-    infectious: ["dengue", "malaria", "typhoid", "chicken pox", "infection", "viral"],
-    eyes: ["eye", "vision", "conjunct", "glaucoma", "cataract", "allergy", "migraine"],
-    ent: ["ear", "nose", "throat", "sinus", "tonsil"],
-    endocrine: ["diabetes", "thyroid", "hypoglycemia", "hormone", "metabolism"],
-    urinary: ["urinary", "kidney", "bladder", "renal"],
-  };
-
-  const byKeywords = keywords[normalizedCategory] ?? [];
-  if (byKeywords.some((kw) => diseaseName.includes(kw))) return true;
-
-  const specialty = (DISEASE_TO_SPECIALTY[disease] ?? "general").toLowerCase();
-  const specialtyByCategory: Record<string, string[]> = {
-    respiratory: ["respiratory", "pulmonology"],
-    digestive: ["gastroenterology"],
-    neurological: ["neurology"],
-    cardiovascular: ["cardiology"],
-    musculoskeletal: ["orthopedics", "rheumatology"],
-    skin: ["dermatology", "allergy"],
-    infectious: ["infectious"],
-    eyes: ["ophthalmology", "allergy"],
-    ent: ["ent", "otolaryngology"],
-    endocrine: ["endocrinology"],
-    urinary: ["urology", "nephrology"],
-  };
-  const allowedSpecialties = specialtyByCategory[normalizedCategory] ?? ["general"];
-  return allowedSpecialties.some((allowed) => specialty.includes(allowed));
-}
-
-function alignPredictionToCategory(
-  category: string,
-  prediction: PredictionResult,
-): PredictionResult {
-  if (!category || category === "general") return prediction;
-  const filtered = prediction.topPredictions.filter((p) =>
-    categoryMatchesDisease(category, p.disease),
-  );
-  if (filtered.length === 0) {
-    const fallback = CATEGORY_DEFAULT_PREDICTIONS[category.trim().toLowerCase()];
-    if (!fallback?.length) return prediction;
-    return {
-      ...prediction,
-      disease: fallback[0].disease,
-      specialty: DISEASE_TO_SPECIALTY[fallback[0].disease] ?? prediction.specialty,
-      confidence: prediction.confidence === "high" ? "medium" : prediction.confidence,
-      topPredictions: fallback,
-    };
-  }
-
-  const best = filtered[0];
-  return {
-    ...prediction,
-    disease: best.disease,
-    specialty: DISEASE_TO_SPECIALTY[best.disease] ?? prediction.specialty,
-    topPredictions: filtered,
-  };
-}
+const FOLLOWUP_FAMILIES: QuestionFamily[] = [
+  { key: "fever", keywords: ["fever", "chills", "sweat"] },
+  { key: "respiratory", keywords: ["cough", "breath", "wheez", "throat"] },
+  { key: "digestive", keywords: ["nausea", "vomit", "stomach", "abd", "diarr"] },
+  { key: "neurological", keywords: ["head", "dizz", "seizure", "memory"] },
+  { key: "pain", keywords: ["pain", "ache", "stiff", "swelling"] },
+];
 
 let cachedMlFeatures: { features: string[]; expiresAt: number } | null = null;
 let cachedCsvSymptoms: string[] | null = null;
@@ -239,7 +73,6 @@ function normalizeSymptomKey(value: string): string {
 
 function loadSymptomsFromTestCsv(): string[] {
   if (cachedCsvSymptoms) return cachedCsvSymptoms;
-
   try {
     const csvPath = path.resolve(
       process.cwd(),
@@ -251,17 +84,15 @@ function loadSymptomsFromTestCsv(): string[] {
     );
     const file = fs.readFileSync(csvPath, "utf-8");
     const [headerLine] = file.split(/\r?\n/);
-    const byNormalizedKey = new Map<string, string>();
+    const seen = new Map<string, string>();
     for (const rawHeader of (headerLine ?? "").split(",")) {
       const raw = rawHeader.trim();
       if (!raw || raw === "prognosis") continue;
-      byNormalizedKey.set(normalizeSymptomKey(raw), raw);
+      seen.set(normalizeSymptomKey(raw), raw);
     }
-    const parsed = Array.from(byNormalizedKey.values());
-    cachedCsvSymptoms = parsed;
-    return parsed;
+    cachedCsvSymptoms = Array.from(seen.values());
+    return cachedCsvSymptoms;
   } catch {
-    // Keep API functional if CSV is unavailable.
     return [];
   }
 }
@@ -270,9 +101,10 @@ function symptomTokens(value: string): string[] {
   return normalizeSymptomKey(value).split("_").filter(Boolean);
 }
 
-function belongsToCategory(feature: string, category: string): boolean {
-  const keywords = CATEGORY_KEYWORDS[category] ?? [];
-  if (keywords.length === 0) return true;
+function belongsToCategory(feature: string, category: Category): boolean {
+  if (category === "general") return true;
+  const keywords = CATEGORY_KEYWORDS[category];
+  if (!keywords.length) return true;
   const key = normalizeSymptomKey(feature);
   return keywords.some((kw) => key.includes(kw));
 }
@@ -297,7 +129,7 @@ function tokenOverlap(a: string, b: string): number {
 
 function rankAdaptiveSymptoms(params: {
   allFeatures: string[];
-  category: string;
+  category: Category;
   positiveFeatures: Set<string>;
   askedFeatures: Set<string>;
   negativeFeatures: Set<string>;
@@ -315,29 +147,21 @@ function rankAdaptiveSymptoms(params: {
       let followupBoost = 0;
       for (const positive of positiveFeatures) {
         const overlap = tokenOverlap(feature, positive);
-        if (overlap > 0) {
-          followupBoost += Math.min(6, overlap * 2);
-        }
-        if (sameFamily(feature, positive)) {
-          followupBoost += 2;
-        }
+        if (overlap > 0) followupBoost += Math.min(6, overlap * 2);
+        if (sameFamily(feature, positive)) followupBoost += 2;
       }
 
       let contradictionPenalty = 0;
       for (const negative of negativeFeatures) {
         const overlap = tokenOverlap(feature, negative);
-        if (overlap > 0) {
-          contradictionPenalty += Math.min(8, overlap * 3);
-        }
-        if (sameFamily(feature, negative)) {
-          contradictionPenalty += 2;
-        }
+        if (overlap > 0) contradictionPenalty += Math.min(8, overlap * 3);
+        if (sameFamily(feature, negative)) contradictionPenalty += 2;
       }
 
-      const priorityScore =
-        baseWeight + followupBoost + categoryBoost - contradictionPenalty;
-
-      return { feature, priorityScore };
+      return {
+        feature,
+        priorityScore: baseWeight + followupBoost + categoryBoost - contradictionPenalty,
+      };
     })
     .sort((a, b) => b.priorityScore - a.priorityScore);
 
@@ -347,44 +171,28 @@ function rankAdaptiveSymptoms(params: {
 function buildSelectedSymptoms(answers: Record<string, boolean>): string[] {
   const labels = new Set<string>();
   for (const [key, value] of Object.entries(answers)) {
-    if (!value) continue;
-    labels.add(titleCaseWords(key));
-    const mapped = SYMPTOM_TO_ML_FEATURES[key as SymptomKey];
-    if (mapped) {
-      for (const f of mapped) labels.add(titleCaseWords(f));
-    }
+    if (value) labels.add(titleCaseWords(key));
   }
   return Array.from(labels).slice(0, 12);
-}
-
-function getActiveMlFeatures(answers: Record<string, boolean>): Set<string> {
-  const activeFeatures = new Set<string>();
-  for (const [symptomKey, answered] of Object.entries(answers)) {
-    if (!answered) continue;
-    const mapped = SYMPTOM_TO_ML_FEATURES[symptomKey as SymptomKey];
-    if (mapped) {
-      for (const f of mapped) activeFeatures.add(f);
-    } else {
-      activeFeatures.add(symptomKey);
-    }
-  }
-  return activeFeatures;
 }
 
 function buildMlPayload(
   answers: Record<string, boolean>,
   allFeatureNames: string[],
 ): Record<string, number> {
-  const activeFeatures = getActiveMlFeatures(answers);
-  const activeNormalizedFeatures = new Set(
-    Array.from(activeFeatures).map((feature) => normalizeSymptomKey(feature)),
-  );
+  const positiveExact = new Set<string>();
+  const positiveNormalized = new Set<string>();
+  for (const [key, value] of Object.entries(answers)) {
+    if (!value) continue;
+    positiveExact.add(key);
+    positiveNormalized.add(normalizeSymptomKey(key));
+  }
   const payload: Record<string, number> = {};
   for (const feature of allFeatureNames) {
-    payload[feature] =
-      activeFeatures.has(feature) || activeNormalizedFeatures.has(normalizeSymptomKey(feature))
-        ? 1
-        : 0;
+    const isActive =
+      positiveExact.has(feature) ||
+      positiveNormalized.has(normalizeSymptomKey(feature));
+    payload[feature] = isActive ? 1 : 0;
   }
   return payload;
 }
@@ -394,29 +202,41 @@ async function fetchMlFeatures(): Promise<string[]> {
     return cachedMlFeatures.features;
   }
   const featuresRes = await fetch(`${ML_API_URL}/api/v1/features`);
-  if (!featuresRes.ok) {
-    throw new Error("ML features endpoint failed");
+  if (!featuresRes.ok) throw new Error("ML features endpoint failed");
+  const data = (await featuresRes.json()) as MlFeaturesResponse;
+  cachedMlFeatures = { features: data.features, expiresAt: Date.now() + 10 * 60 * 1000 };
+  return data.features;
+}
+
+function alignPredictionToCategory(
+  category: Category,
+  prediction: PredictionResult,
+): PredictionResult {
+  if (category === "general") return prediction;
+
+  const filtered = prediction.topPredictions.filter((p) =>
+    diseaseMatchesCategory(p.disease, category),
+  );
+
+  if (filtered.length === 0) {
+    // Trust the model: keep its top picks but downgrade confidence so the
+    // user (and the report) reflect the uncertainty.
+    return {
+      ...prediction,
+      confidence: prediction.confidence === "high" ? "medium" : "low",
+    };
   }
-  const featuresData = (await featuresRes.json()) as MlFeaturesResponse;
-  cachedMlFeatures = {
-    features: featuresData.features,
-    expiresAt: Date.now() + 10 * 60 * 1000,
+
+  const best = filtered[0];
+  return {
+    ...prediction,
+    disease: best.disease,
+    specialty: inferSpecialty(best.disease),
+    topPredictions: filtered,
   };
-  return featuresData.features;
 }
 
-function getLocalAdaptiveFeatures(): string[] {
-  const localSet = new Set<string>();
-  const csvSymptoms = loadSymptomsFromTestCsv();
-  for (const symptom of csvSymptoms) localSet.add(symptom);
-  for (const symptomKey of QUIZ_QUESTION_IDS) localSet.add(symptomKey);
-  for (const mapped of Object.values(SYMPTOM_TO_ML_FEATURES)) {
-    for (const value of mapped) localSet.add(value);
-  }
-  return Array.from(localSet);
-}
-
-function buildFallbackReasoning(prediction: PredictionResult): string {
+function buildReasoning(prediction: PredictionResult): string {
   const symptomsList = prediction.selectedSymptoms.slice(0, 8);
   const symptoms = symptomsList.join(", ");
   const primary = prediction.topPredictions[0];
@@ -426,10 +246,10 @@ function buildFallbackReasoning(prediction: PredictionResult): string {
 
   if (prediction.confidence === "low") {
     return [
-      `The model's highest-ranked match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}, but confidence is low due to overlap across conditions.`,
+      `The model's highest-ranked match is ${prediction.disease}${primary ? ` (${Math.round(primary.confidence * 100)}%)` : ""}, but confidence is low because several conditions share this symptom pattern.`,
       alternatives.length > 0
-        ? `We also considered ${alternatives.join(" and ")} while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`
-        : `We also considered multiple alternative conditions while reviewing the same symptom pattern${symptoms ? ` (${symptoms})` : ""}.`,
+        ? `We also considered ${alternatives.join(" and ")} while reviewing your responses${symptoms ? ` (${symptoms})` : ""}.`
+        : `We also considered alternative conditions while reviewing your responses${symptoms ? ` (${symptoms})` : ""}.`,
       "Use this as guidance only and confirm with a clinician.",
     ].join(" ");
   }
@@ -448,87 +268,47 @@ function buildFallbackReasoning(prediction: PredictionResult): string {
 
 async function predictWithMlApi(
   answers: Record<string, boolean>,
-  category = "general",
+  category: Category,
 ): Promise<PredictionResult> {
   const selectedSymptoms = buildSelectedSymptoms(answers);
-  try {
-    const features = await fetchMlFeatures();
-    const payload = buildMlPayload(answers, features);
+  const features = await fetchMlFeatures();
+  const payload = buildMlPayload(answers, features);
 
-    const predictRes = await fetch(`${ML_API_URL}/api/v1/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symptoms: payload, top_n: 12 }),
-    });
+  const predictRes = await fetch(`${ML_API_URL}/api/v1/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symptoms: payload, top_n: 10 }),
+  });
 
-    if (!predictRes.ok) throw new Error("ML predict endpoint failed");
-    const prediction = (await predictRes.json()) as MlPredictResponse;
-
-    const confidenceScore = prediction.confidence;
-    const confidenceLevel: "high" | "medium" | "low" =
-      confidenceScore >= 0.7
-        ? "high"
-        : confidenceScore >= 0.4
-          ? "medium"
-          : "low";
-
-    const rawPrediction: PredictionResult = {
-      disease: prediction.predicted_disease,
-      specialty: DISEASE_TO_SPECIALTY[prediction.predicted_disease] ?? "general",
-      confidence: confidenceLevel,
-      topPredictions: (prediction.top_diseases || [])
-        .slice(0, 12)
-        .map((d) => ({ disease: d.disease, confidence: d.confidence })),
-      selectedSymptoms,
-    };
-    return alignPredictionToCategory(category, rawPrediction);
-  } catch {
-    return alignPredictionToCategory(category, predictDiseaseRuleBased(answers));
+  if (!predictRes.ok) {
+    const detail = await predictRes.text();
+    throw new Error(`ML predict endpoint failed (${predictRes.status}): ${detail}`);
   }
-}
+  const prediction = (await predictRes.json()) as MlPredictResponse;
 
-function predictDiseaseRuleBased(
-  answers: Record<string, boolean>,
-): PredictionResult {
-  const positiveSymptoms = new Set<SymptomKey>();
-  for (const id of QUIZ_QUESTION_IDS) {
-    const symptomKey = id as SymptomKey;
-    if (answers[symptomKey] === true) {
-      positiveSymptoms.add(symptomKey);
-    }
-  }
+  const score = prediction.confidence;
+  const confidenceLevel: "high" | "medium" | "low" =
+    score >= 0.7 ? "high" : score >= 0.4 ? "medium" : "low";
 
-  for (const mapping of DISEASE_SYMPTOM_MAP) {
-    const hasAllRequired = mapping.requiredSymptoms.every((s) =>
-      positiveSymptoms.has(s),
-    );
-    if (hasAllRequired) {
-      return {
-        disease: mapping.disease,
-        specialty: mapping.specialty,
-        confidence: mapping.confidence,
-        topPredictions: [{ disease: mapping.disease, confidence: 0.72 }],
-        selectedSymptoms: buildSelectedSymptoms(answers),
-      };
-    }
-  }
-
-  return {
-    disease: DEFAULT_RECOMMENDATION.disease,
-    specialty: DEFAULT_RECOMMENDATION.specialty,
-    confidence: DEFAULT_RECOMMENDATION.confidence,
-    topPredictions: [{ disease: DEFAULT_RECOMMENDATION.disease, confidence: 0.35 }],
-    selectedSymptoms: buildSelectedSymptoms(answers),
+  const rawPrediction: PredictionResult = {
+    disease: prediction.predicted_disease,
+    specialty: inferSpecialty(prediction.predicted_disease),
+    confidence: confidenceLevel,
+    topPredictions: (prediction.top_diseases ?? [])
+      .slice(0, 12)
+      .map((d) => ({ disease: d.disease, confidence: d.confidence })),
+    selectedSymptoms,
   };
+  return alignPredictionToCategory(category, rawPrediction);
 }
 
-async function buildReasoning(prediction: PredictionResult): Promise<string> {
-  return buildFallbackReasoning(prediction);
+function getLocalAdaptiveFeatures(): string[] {
+  return loadSymptomsFromTestCsv();
 }
 
-export async function getQuizSymptoms(_req: Request, res: Response) {
-  const reqQuery = (_req as Request).query ?? {};
-  const category = String(reqQuery.category ?? "general").trim().toLowerCase();
+export async function getQuizSymptoms(req: Request, res: Response) {
+  const reqQuery = req.query ?? {};
+  const category = normalizeCategory(String(reqQuery.category ?? "general"));
   const askedFeatures = new Set(
     String(reqQuery.asked ?? "")
       .split(",")
@@ -548,15 +328,21 @@ export async function getQuizSymptoms(_req: Request, res: Response) {
   const limit = Number.isFinite(requestedLimit) ? requestedLimit : ADAPTIVE_LIMIT;
 
   const localFeatures = getLocalAdaptiveFeatures();
-  let source = "adaptive_local";
   let allFeatures = localFeatures;
+  let source = "csv";
 
   try {
     const mlFeatures = await fetchMlFeatures();
     allFeatures = Array.from(new Set([...localFeatures, ...mlFeatures]));
-    source = "adaptive_ml_enhanced";
+    source = "ml_enhanced";
   } catch {
-    // Keep quiz functional even when ML feature service is unavailable.
+    // Quiz still works from the CSV header even if the ML service is down.
+  }
+
+  if (allFeatures.length === 0) {
+    return res.status(503).json({
+      error: "Symptom catalog is not available right now.",
+    });
   }
 
   const ranked = rankAdaptiveSymptoms({
@@ -579,9 +365,7 @@ export async function getQuizSymptoms(_req: Request, res: Response) {
 
 export async function submitAssessment(req: Request, res: Response) {
   const { authUser } = req as AuthRequest;
-  if (!authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (!authUser) return res.status(401).json({ error: "Unauthorized" });
 
   const parseResult = submitAssessmentSchema.safeParse(req.body);
   if (!parseResult.success) {
@@ -592,8 +376,20 @@ export async function submitAssessment(req: Request, res: Response) {
   }
 
   const { answers, category } = parseResult.data;
-  const prediction = await predictWithMlApi(answers, category ?? "general");
-  const reasoning = await buildReasoning(prediction);
+  const normalizedCategory = normalizeCategory(category);
+
+  let prediction: PredictionResult;
+  try {
+    prediction = await predictWithMlApi(answers, normalizedCategory);
+  } catch (err) {
+    return res.status(502).json({
+      error:
+        "We couldn't reach the prediction service. Please try again in a moment.",
+      detail: err instanceof Error ? err.message : "ml_api_unavailable",
+    });
+  }
+
+  const reasoning = buildReasoning(prediction);
 
   const [created] = await db
     .insert(assessments)
@@ -625,9 +421,7 @@ export async function submitAssessment(req: Request, res: Response) {
 
 export async function getUserAssessments(req: Request, res: Response) {
   const { authUser } = req as AuthRequest;
-  if (!authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (!authUser) return res.status(401).json({ error: "Unauthorized" });
 
   const rows = await db
     .select()
@@ -653,9 +447,7 @@ export async function getUserAssessments(req: Request, res: Response) {
 
 export async function getAssessmentById(req: Request, res: Response) {
   const { authUser } = req as AuthRequest;
-  if (!authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (!authUser) return res.status(401).json({ error: "Unauthorized" });
 
   const assessmentId = Number(req.params.id);
   if (!Number.isInteger(assessmentId) || assessmentId <= 0) {
@@ -668,9 +460,7 @@ export async function getAssessmentById(req: Request, res: Response) {
     .where(and(eq(assessments.id, assessmentId), eq(assessments.userId, authUser.id)))
     .limit(1);
 
-  if (!row) {
-    return res.status(404).json({ error: "Assessment not found" });
-  }
+  if (!row) return res.status(404).json({ error: "Assessment not found" });
 
   return res.json({
     assessment: {
@@ -689,9 +479,7 @@ export async function getAssessmentById(req: Request, res: Response) {
 
 export async function getDashboardSummary(req: Request, res: Response) {
   const { authUser } = req as AuthRequest;
-  if (!authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (!authUser) return res.status(401).json({ error: "Unauthorized" });
 
   const [lastCheckupRow] = await db
     .select()
@@ -702,10 +490,7 @@ export async function getDashboardSummary(req: Request, res: Response) {
 
   const now = new Date();
   const upcomingRows = await db
-    .select({
-      appointment: appointments,
-      doctor: users,
-    })
+    .select({ appointment: appointments, doctor: users })
     .from(appointments)
     .leftJoin(users, eq(users.id, appointments.doctorId))
     .where(eq(appointments.patientId, authUser.id))
