@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -200,6 +201,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
             isSignup ? "Create account" : "Log in"
           )}
         </Button>
+        {mode === "login" && (
+          <div className="pt-1 text-right">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
       </Form>
     </div>
   );

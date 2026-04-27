@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Loader2, Plus, UserCog, Users } from "lucide-react";
+import { Activity, Loader2, Plus, UserCog, Users, WandSparkles } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -162,6 +162,26 @@ function AdminDashboardInner() {
   const [isCreateDoctorOpen, setIsCreateDoctorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const generateTempPassword = () => {
+    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    const numbers = "23456789";
+    const symbols = "@#$%";
+    const all = letters + numbers + symbols;
+    const chars = [
+      letters[Math.floor(Math.random() * letters.length)],
+      numbers[Math.floor(Math.random() * numbers.length)],
+      symbols[Math.floor(Math.random() * symbols.length)],
+    ];
+    while (chars.length < 8) {
+      chars.push(all[Math.floor(Math.random() * all.length)]);
+    }
+    for (let i = chars.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    setPassword(chars.join(""));
+  };
+
   const createDoctorMutation = useMutation({
     mutationFn: async (payload: {
       name: string;
@@ -309,6 +329,18 @@ function AdminDashboardInner() {
                       placeholder="e.g. Doctor123!"
                       className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
+                    <div className="pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-[11px]"
+                        onClick={generateTempPassword}
+                      >
+                        <WandSparkles className="h-3.5 w-3.5" />
+                        Magic wand: generate 8-char temp password
+                      </Button>
+                    </div>
                     {password && (
                       <div className="flex flex-wrap gap-3 pt-1">
                         <span

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -16,10 +16,19 @@ import { Button } from "@/components/ui/button";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 
 export default function BookingPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading booking...</div>}>
+      <BookingPageContent />
+    </Suspense>
+  );
+}
+
+function BookingPageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const specialty = searchParams.get("specialty") ?? "general";
+  const [maxDistanceKm, setMaxDistanceKm] = useState<number>(10);
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
@@ -38,10 +47,10 @@ export default function BookingPage() {
   });
 
   const doctorsQuery = useQuery({
-    queryKey: ["doctors", "specialty", specialty],
+    queryKey: ["doctors", "specialty", specialty, "maxDistanceKm", maxDistanceKm],
     queryFn: async () => {
-      const response = await api.get<{ doctors: Doctor[] }>(
-        `/doctors?specialty=${encodeURIComponent(specialty)}`,
+      const response = await api.get<{ doctors: Doctor[]; maxDistanceKm: number }>(
+        `/doctors?specialty=${encodeURIComponent(specialty)}&maxDistanceKm=${encodeURIComponent(String(maxDistanceKm))}`,
       );
       return response.data.doctors;
     },
@@ -49,16 +58,18 @@ export default function BookingPage() {
     gcTime: 2 * 60 * 60 * 1000,
   });
 
+  const effectiveSelectedDoctorId = selectedDoctorId ?? doctorsQuery.data?.[0]?.id ?? null;
+
   const bookedSlotsQuery = useQuery({
-    queryKey: ["appointments", "booked-slots", selectedDoctorId],
+    queryKey: ["appointments", "booked-slots", effectiveSelectedDoctorId],
     queryFn: async () => {
-      if (!selectedDoctorId) return [];
+      if (!effectiveSelectedDoctorId) return [];
       const response = await api.get<{ slots: BookedSlot[] }>(
-        `/appointments/booked-slots?doctorId=${selectedDoctorId}`,
+        `/appointments/booked-slots?doctorId=${effectiveSelectedDoctorId}`,
       );
       return response.data.slots;
     },
-    enabled: Boolean(selectedDoctorId),
+    enabled: Boolean(effectiveSelectedDoctorId),
     staleTime: 5 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
@@ -85,14 +96,8 @@ export default function BookingPage() {
   const isLoadingDoctors = doctorsQuery.isLoading;
   const isSubmitting = createAppointmentMutation.isPending;
 
-  useEffect(() => {
-    if (!selectedDoctorId && doctors.length > 0) {
-      setSelectedDoctorId(doctors[0].id);
-    }
-  }, [doctors, selectedDoctorId]);
-
   const handleSubmit = async () => {
-    if (!selectedDoctorId || !selectedSlot) {
+    if (!effectiveSelectedDoctorId || !selectedSlot) {
       const message = "Please select a doctor and a time slot.";
       setError(message);
       toast.error("Booking failed", { description: message });
@@ -106,7 +111,7 @@ export default function BookingPage() {
 
     try {
       await createAppointmentMutation.mutateAsync({
-        doctorId: selectedDoctorId,
+        doctorId: effectiveSelectedDoctorId,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
       });
@@ -120,7 +125,7 @@ export default function BookingPage() {
           ?.error ?? "Failed to book appointment.";
       setError(msg);
       toast.error("Booking failed", { description: msg });
-    } finally {}
+    }
   };
 
   const handleLogout = async () => {
@@ -157,13 +162,30 @@ export default function BookingPage() {
               ? "Doctors are sorted nearest first using your saved location."
               : "Add your location in profile to sort doctors by nearest distance."}
           </p>
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <label htmlFor="distance-range" className="text-muted-foreground">
+              Search radius:
+            </label>
+            <select
+              id="distance-range"
+              value={String(maxDistanceKm)}
+              onChange={(e) => setMaxDistanceKm(Number(e.target.value) || 10)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="5">5 km</option>
+              <option value="10">10 km (default)</option>
+              <option value="25">25 km</option>
+              <option value="50">50 km</option>
+              <option value="100">100 km</option>
+            </select>
+          </div>
         </header>
 
         <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2">
             <DoctorSelector
               doctors={doctors}
-              selectedDoctorId={selectedDoctorId}
+              selectedDoctorId={effectiveSelectedDoctorId}
               onSelect={setSelectedDoctorId}
               isLoading={isLoadingDoctors}
             />
@@ -183,7 +205,7 @@ export default function BookingPage() {
             <Button
               onClick={handleSubmit}
               disabled={
-                !selectedDoctorId ||
+                !effectiveSelectedDoctorId ||
                 !selectedSlot ||
                 isSubmitting ||
                 doctors.length === 0
