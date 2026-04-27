@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { format } from "date-fns"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 
@@ -75,14 +76,17 @@ const columns: ColumnDef<AssessmentRow>[] = [
     header: () => (
       <span className="px-4 py-3 block text-right">Action</span>
     ),
-    cell: () => (
+    cell: ({ row }) => (
       <div className="px-4 py-4 text-right">
         <Button
           variant="ghost"
           size="sm"
           className="inline-flex items-center gap-1 px-2 text-[11px] font-semibold text-primary"
+          asChild
         >
-          View full report
+          <Link href={`/dashboard/assessment/${row.original.id}`}>
+            View full report
+          </Link>
         </Button>
       </div>
     ),
@@ -132,12 +136,12 @@ export function HealthHistoryTable({ data, totalCount }: HealthHistoryTableProps
                   className="px-4 py-8 text-center text-xs text-muted-foreground"
                 >
                   No assessments yet.{" "}
-                  <a
+                  <Link
                     href="/dashboard/assessment"
                     className="font-medium text-primary hover:underline"
                   >
                     Take your first assessment
-                  </a>
+                  </Link>
                   .
                 </td>
               </tr>

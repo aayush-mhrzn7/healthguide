@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/apiClient";
 import { DoctorSelector, type Doctor } from "@/components/booking/DoctorSelector";
@@ -16,71 +17,79 @@ import { RoleSidebar } from "@/components/layout/RoleSidebar";
 
 export default function BookingPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const specialty = searchParams.get("specialty") ?? "general";
 
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
-  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasUserLocation, setHasUserLocation] = useState<boolean>(false);
 
-  const loadDoctors = useCallback(async () => {
-    setIsLoadingDoctors(true);
-    try {
-      try {
-        const me = await api.get<{ user: { latitude: number | null; longitude: number | null } }>(
-          "/auth/me",
-        );
-        setHasUserLocation(
-          typeof me.data.user.latitude === "number" &&
-            typeof me.data.user.longitude === "number",
-        );
-      } catch {
-        setHasUserLocation(false);
-      }
-      const res = await api.get<{ doctors: Doctor[] }>(
-        `/doctors?specialty=${encodeURIComponent(specialty)}`
+  const meQuery = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: async () => {
+      const response = await api.get<{
+        user: { latitude: number | null; longitude: number | null };
+      }>("/auth/me");
+      return response.data.user;
+    },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+
+  const doctorsQuery = useQuery({
+    queryKey: ["doctors", "specialty", specialty],
+    queryFn: async () => {
+      const response = await api.get<{ doctors: Doctor[] }>(
+        `/doctors?specialty=${encodeURIComponent(specialty)}`,
       );
-      setDoctors(res.data.doctors);
-      if (res.data.doctors.length > 0 && !selectedDoctorId) {
-        setSelectedDoctorId(res.data.doctors[0].id);
-      }
-    } catch {
-      setDoctors([]);
-    } finally {
-      setIsLoadingDoctors(false);
-    }
-  }, [specialty, selectedDoctorId]);
+      return response.data.doctors;
+    },
+    staleTime: 15 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+
+  const bookedSlotsQuery = useQuery({
+    queryKey: ["appointments", "booked-slots", selectedDoctorId],
+    queryFn: async () => {
+      if (!selectedDoctorId) return [];
+      const response = await api.get<{ slots: BookedSlot[] }>(
+        `/appointments/booked-slots?doctorId=${selectedDoctorId}`,
+      );
+      return response.data.slots;
+    },
+    enabled: Boolean(selectedDoctorId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+
+  const createAppointmentMutation = useMutation({
+    mutationFn: async (payload: {
+      doctorId: number;
+      startsAt: string;
+      endsAt: string;
+    }) => api.post("/appointments", payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["appointments"] }),
+        queryClient.invalidateQueries({ queryKey: ["assessments"] }),
+      ]);
+    },
+  });
+
+  const doctors = doctorsQuery.data ?? [];
+  const hasUserLocation =
+    typeof meQuery.data?.latitude === "number" &&
+    typeof meQuery.data?.longitude === "number";
+  const bookedSlots = bookedSlotsQuery.data ?? [];
+  const isLoadingDoctors = doctorsQuery.isLoading;
+  const isSubmitting = createAppointmentMutation.isPending;
 
   useEffect(() => {
-    loadDoctors();
-  }, [loadDoctors]);
-
-  useEffect(() => {
-    if (!selectedDoctorId) {
-      setBookedSlots([]);
-      return;
+    if (!selectedDoctorId && doctors.length > 0) {
+      setSelectedDoctorId(doctors[0].id);
     }
-    let isMounted = true;
-    const load = async () => {
-      try {
-        const res = await api.get<{ slots: BookedSlot[] }>(
-          `/appointments/booked-slots?doctorId=${selectedDoctorId}`
-        );
-        if (isMounted) setBookedSlots(res.data.slots);
-      } catch {
-        if (isMounted) setBookedSlots([]);
-      }
-    };
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedDoctorId]);
+  }, [doctors, selectedDoctorId]);
 
   const handleSubmit = async () => {
     if (!selectedDoctorId || !selectedSlot) {
@@ -90,14 +99,13 @@ export default function BookingPage() {
       return;
     }
 
-    setIsSubmitting(true);
     setError(null);
 
     const startsAt = selectedSlot;
     const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
 
     try {
-      await api.post("/appointments", {
+      await createAppointmentMutation.mutateAsync({
         doctorId: selectedDoctorId,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
@@ -112,9 +120,7 @@ export default function BookingPage() {
           ?.error ?? "Failed to book appointment.";
       setError(msg);
       toast.error("Booking failed", { description: msg });
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally {}
   };
 
   const handleLogout = async () => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Activity, Loader2, Plus, UserCog, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
@@ -129,9 +130,28 @@ export default function AdminDashboardPage() {
 
 function AdminDashboardInner() {
   const router = useRouter();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [health, setHealth] = useState<AdminHealth | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const queryClient = useQueryClient();
+  const statsQuery = useQuery({
+    queryKey: ["admin", "stats"],
+    queryFn: async () => {
+      const response = await api.get<{ stats: AdminStats }>("/admin/stats");
+      return response.data.stats;
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+  const healthQuery = useQuery({
+    queryKey: ["admin", "health"],
+    queryFn: async () => {
+      const response = await api.get<{ health: AdminHealth }>("/admin/health");
+      return response.data.health;
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+  const stats = statsQuery.data ?? null;
+  const health = healthQuery.data ?? null;
+  const isLoadingStats = statsQuery.isLoading || healthQuery.isLoading;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -139,55 +159,24 @@ function AdminDashboardInner() {
   const [clinicLatitude, setClinicLatitude] = useState<number | null>(null);
   const [clinicLongitude, setClinicLongitude] = useState<number | null>(null);
   const [specialty, setSpecialty] = useState("general");
-  const [isCreating, setIsCreating] = useState(false);
   const [isCreateDoctorOpen, setIsCreateDoctorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadStats = async () => {
-      try {
-        const [statsResponse, healthResponse] = await Promise.all([
-          api.get<{ stats: AdminStats }>("/admin/stats"),
-          api.get<{ health: AdminHealth }>("/admin/health"),
-        ]);
-        if (!isMounted) return;
-        setStats(statsResponse.data.stats);
-        setHealth(healthResponse.data.health);
-      } catch {
-        if (!isMounted) return;
-        setStats(null);
-        setHealth(null);
-      } finally {
-        if (isMounted) {
-          setIsLoadingStats(false);
-        }
-      }
-    };
-
-    loadStats();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleCreateDoctor = async () => {
-    setError(null);
-    setIsCreating(true);
-
-    try {
-      await api.post("/admin/doctors", {
-        name: name.trim(),
-        email: email.trim(),
-        password: password.trim(),
-        clinicLocation: clinicLocation.trim() || null,
-        clinicLatitude,
-        clinicLongitude,
-        specialty,
-      });
-
+  const createDoctorMutation = useMutation({
+    mutationFn: async (payload: {
+      name: string;
+      email: string;
+      password: string;
+      clinicLocation: string | null;
+      clinicLatitude: number | null;
+      clinicLongitude: number | null;
+      specialty: string;
+    }) => api.post("/admin/doctors", payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "stats"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "health"] }),
+      ]);
       setName("");
       setEmail("");
       setPassword("");
@@ -199,21 +188,30 @@ function AdminDashboardInner() {
       toast.success("Doctor created", {
         description: "Doctor account was created successfully.",
       });
+    },
+  });
+  const isCreating = createDoctorMutation.isPending;
 
-      try {
-        const response = await api.get<{ stats: AdminStats }>("/admin/stats");
-        setStats(response.data.stats);
-      } catch {
-      }
+  const handleCreateDoctor = async () => {
+    setError(null);
+    try {
+      await createDoctorMutation.mutateAsync({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        clinicLocation: clinicLocation.trim() || null,
+        clinicLatitude,
+        clinicLongitude,
+        specialty,
+      });
+
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } } }).response?.data
           ?.error ?? "Failed to create doctor.";
       setError(msg);
       toast.error("Create doctor failed", { description: msg });
-    } finally {
-      setIsCreating(false);
-    }
+    } finally {}
   };
 
   const handleLogout = async () => {

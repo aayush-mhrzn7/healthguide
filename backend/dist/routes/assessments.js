@@ -10,3 +10,4 @@ assessmentsRouter.post("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(
 assessmentsRouter.get("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getUserAssessments);
 assessmentsRouter.get("/symptoms", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getQuizSymptoms);
 assessmentsRouter.get("/dashboard-summary", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getDashboardSummary);
+assessmentsRouter.get("/:id", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), assessments_controller_1.getAssessmentById);

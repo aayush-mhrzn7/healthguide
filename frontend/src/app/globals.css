@@ -197,3 +197,30 @@
     color: var(--primary-foreground);
   }
 }
+
+.healthguide-map-pin-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.healthguide-map-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 3px 4px hsl(0 0% 0% / 0.2));
+}
+
+.healthguide-map-pin svg {
+  width: 100%;
+  height: 100%;
+}
+
+.healthguide-map-pin svg path {
+  fill: var(--primary);
+}
+
+.healthguide-map-pin svg circle {
+  fill: var(--primary-foreground);
+}

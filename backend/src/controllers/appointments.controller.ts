@@ -10,6 +10,7 @@ import {
   type DbUser,
 } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
+import { sendAppointmentBookedEmails } from "../lib/sendVerificationEmail";
 
 const createAppointmentSchema = z.object({
   doctorId: z.number().int().positive(),
@@ -34,6 +35,11 @@ export async function createAppointment(req: Request, res: Response) {
   }
 
   const { doctorId, startsAt, endsAt } = parseResult.data;
+  const [patient] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, authUser.id))
+    .limit(1);
 
   const doctor = await db
     .select()
@@ -45,6 +51,10 @@ export async function createAppointment(req: Request, res: Response) {
     return res.status(400).json({ error: "Invalid doctor" });
   }
 
+  if (!patient) {
+    return res.status(404).json({ error: "Patient not found" });
+  }
+
   const [created] = await db
     .insert(appointments)
     .values({
@@ -54,6 +64,19 @@ export async function createAppointment(req: Request, res: Response) {
       endsAt: new Date(endsAt),
     })
     .returning();
+
+  try {
+    await sendAppointmentBookedEmails({
+      patientName: patient.name,
+      patientEmail: patient.email,
+      doctorName: doctor[0].name,
+      doctorEmail: doctor[0].email,
+      startsAt: created.startsAt,
+      endsAt: created.endsAt,
+    });
+  } catch (error) {
+    console.error("Failed to send appointment booking emails", error);
+  }
 
   return res.status(201).json({
     appointment: serializeAppointment(created),

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   BadgeCheck,
@@ -53,10 +54,19 @@ type ProfileUser = {
 };
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<ProfileUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const userQuery = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: async () => {
+      const response = await api.get<{ user: ProfileUser }>("/auth/me");
+      return response.data.user;
+    },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+  const user = userQuery.data ?? null;
+  const isLoading = userQuery.isLoading;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [formDob, setFormDob] = useState("");
   const [formGender, setFormGender] = useState("");
   const [formBloodType, setFormBloodType] = useState("");
@@ -66,29 +76,35 @@ export default function ProfilePage() {
   const [formLongitude, setFormLongitude] = useState<number | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get<{ user: ProfileUser }>("/auth/me");
-        if (!isMounted) return;
-        setUser(response.data.user);
-      } catch (error) {
-        console.error("Failed to load profile", error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const saveProfileMutation = useMutation({
+    mutationFn: async (payload: {
+      dateOfBirth: string | null;
+      gender: string | null;
+      bloodType: string | null;
+      phone: string | null;
+      address: string | null;
+      latitude: number | null;
+      longitude: number | null;
+    }) => {
+      const response = await api.patch<{ user: ProfileUser }>("/auth/me", payload);
+      return response.data.user;
+    },
+    onSuccess: async (updatedUser) => {
+      queryClient.setQueryData(["auth", "me"], updatedUser);
+      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      setIsDialogOpen(false);
+      toast.success("Profile updated", {
+        description: "Your changes have been saved.",
+      });
+    },
+    onError: (error) => {
+      console.error("Failed to save profile", error);
+      toast.error("Profile update failed", {
+        description: "Could not save your profile changes.",
+      });
+    },
+  });
+  const isSaving = saveProfileMutation.isPending;
 
   const openDialogWithCurrentValues = () => {
     if (!user) return;
@@ -109,8 +125,6 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async () => {
     try {
-      setIsSaving(true);
-
       const payload = {
         dateOfBirth: formDob || null,
         gender: formGender || null,
@@ -121,23 +135,9 @@ export default function ProfilePage() {
         longitude: formLongitude,
       };
 
-      const response = await api.patch<{ user: ProfileUser }>(
-        "/auth/me",
-        payload,
-      );
-
-      setUser(response.data.user);
-      setIsDialogOpen(false);
-      toast.success("Profile updated", {
-        description: "Your changes have been saved.",
-      });
+      await saveProfileMutation.mutateAsync(payload);
     } catch (error) {
       console.error("Failed to save profile", error);
-      toast.error("Profile update failed", {
-        description: "Could not save your profile changes.",
-      });
-    } finally {
-      setIsSaving(false);
     }
   };
 

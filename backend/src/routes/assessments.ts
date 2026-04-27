@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   submitAssessment,
   getUserAssessments,
+  getAssessmentById,
   getDashboardSummary,
   getQuizSymptoms,
 } from "../controllers/assessments.controller";
@@ -36,6 +37,13 @@ assessmentsRouter.get(
   verifyJwt,
   requireRole(["user"]),
   getDashboardSummary
+);
+
+assessmentsRouter.get(
+  "/:id",
+  verifyJwt,
+  requireRole(["user"]),
+  getAssessmentById
 );
 
 export { assessmentsRouter };

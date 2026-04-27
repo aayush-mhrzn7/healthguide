@@ -8,6 +8,7 @@ const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
 const schema_1 = require("../db/schema");
+const sendVerificationEmail_1 = require("../lib/sendVerificationEmail");
 const createAppointmentSchema = zod_1.z.object({
     doctorId: zod_1.z.number().int().positive(),
     startsAt: zod_1.z.string().min(1),
@@ -26,6 +27,11 @@ async function createAppointment(req, res) {
         });
     }
     const { doctorId, startsAt, endsAt } = parseResult.data;
+    const [patient] = await client_1.db
+        .select()
+        .from(schema_1.users)
+        .where((0, drizzle_orm_1.eq)(schema_1.users.id, authUser.id))
+        .limit(1);
     const doctor = await client_1.db
         .select()
         .from(schema_1.users)
@@ -33,6 +39,9 @@ async function createAppointment(req, res) {
         .limit(1);
     if (!doctor[0]) {
         return res.status(400).json({ error: "Invalid doctor" });
+    }
+    if (!patient) {
+        return res.status(404).json({ error: "Patient not found" });
     }
     const [created] = await client_1.db
         .insert(schema_1.appointments)
@@ -43,6 +52,19 @@ async function createAppointment(req, res) {
         endsAt: new Date(endsAt),
     })
         .returning();
+    try {
+        await (0, sendVerificationEmail_1.sendAppointmentBookedEmails)({
+            patientName: patient.name,
+            patientEmail: patient.email,
+            doctorName: doctor[0].name,
+            doctorEmail: doctor[0].email,
+            startsAt: created.startsAt,
+            endsAt: created.endsAt,
+        });
+    }
+    catch (error) {
+        console.error("Failed to send appointment booking emails", error);
+    }
     return res.status(201).json({
         appointment: serializeAppointment(created),
     });

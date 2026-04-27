@@ -20,7 +20,6 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
-import { QUIZ_QUESTIONS } from "@/constants/quiz";
 import { api } from "@/lib/apiClient";
 import { QuizQuestionCard } from "@/components/assessment/QuizQuestionCard";
 import { QuizProgress } from "@/components/assessment/QuizProgress";
@@ -142,6 +141,7 @@ type QuizSymptom = {
   id: string;
   symptomKey: string;
   text: string;
+  section?: string;
 };
 
 export default function AssessmentPage() {
@@ -160,7 +160,6 @@ export default function AssessmentPage() {
   const maxQuestions = 30;
 
   const currentQuestion = questions[currentIndex];
-
   const submitAssessment = useCallback(
     async (finalAnswers: Record<string, boolean>) => {
       setIsSubmitting(true);
@@ -168,7 +167,7 @@ export default function AssessmentPage() {
       try {
         const res = await api.post<{ assessment: AssessmentResult }>(
           "/assessments",
-          { answers: finalAnswers },
+          { answers: finalAnswers, category: selectedCategory?.id ?? "general" },
         );
         setResult(res.data.assessment);
         setStep("result");
@@ -185,7 +184,7 @@ export default function AssessmentPage() {
         setIsSubmitting(false);
       }
     },
-    [],
+    [selectedCategory?.id],
   );
 
   const handleCategorySelect = (category: DiseaseCategory) => {
@@ -199,36 +198,53 @@ export default function AssessmentPage() {
       setStep("quiz");
       setIsLoadingNextQuestion(true);
       try {
-        const res = await api.get<{ symptoms: QuizSymptom[] }>(
+        const categoryRes = await api.get<{ symptoms: QuizSymptom[] }>(
           "/assessments/symptoms",
           {
             params: {
               category: category.id,
               asked: "",
               positive: "",
-              limit: 1,
+              limit: maxQuestions,
             },
           },
         );
-        const firstQuestion =
-          res.data.symptoms?.[0] ??
-          QUIZ_QUESTIONS.find((q) => q.symptomKey) ??
-          null;
-        if (!firstQuestion) {
-          setError("Could not load quiz questions right now.");
+
+        const baseQuestions = categoryRes.data.symptoms ?? [];
+        if (baseQuestions.length >= maxQuestions) {
+          setQuestions(baseQuestions.slice(0, maxQuestions));
           return;
         }
-        setQuestions([firstQuestion]);
-      } catch {
-        const fallback = QUIZ_QUESTIONS[0];
-        if (fallback) {
-          setQuestions([fallback]);
-          toast.message("Using fallback quiz", {
-            description: "Adaptive question service is unavailable right now.",
-          });
-        } else {
-          setError("Could not load quiz questions right now.");
+
+        const generalRes = await api.get<{ symptoms: QuizSymptom[] }>(
+          "/assessments/symptoms",
+          {
+            params: {
+              category: "general",
+              asked: "",
+              positive: "",
+              limit: maxQuestions * 2,
+            },
+          },
+        );
+
+        const combined = [...baseQuestions];
+        const seen = new Set(baseQuestions.map((q) => q.symptomKey));
+        for (const candidate of generalRes.data.symptoms ?? []) {
+          if (seen.has(candidate.symptomKey)) continue;
+          combined.push(candidate);
+          seen.add(candidate.symptomKey);
+          if (combined.length >= maxQuestions) break;
         }
+
+        if (combined.length === 0) {
+          setError("Could not load symptom questions right now.");
+          return;
+        }
+
+        setQuestions(combined.slice(0, maxQuestions));
+      } catch {
+        setError("Could not load symptom questions right now.");
       } finally {
         setIsLoadingNextQuestion(false);
       }
@@ -248,41 +264,13 @@ export default function AssessmentPage() {
       const newAsked = [...askedKeys, currentQuestion.symptomKey];
       setAskedKeys(newAsked);
 
-      if (newAsked.length >= maxQuestions) {
+      const totalQuestions = Math.min(maxQuestions, questions.length || maxQuestions);
+      if (newAsked.length >= totalQuestions) {
         submitAssessment(newAnswers);
         return;
       }
 
-      setIsLoadingNextQuestion(true);
-      try {
-        const positive = Object.entries(newAnswers)
-          .filter(([, v]) => v)
-          .map(([k]) => k)
-          .join(",");
-        const asked = newAsked.join(",");
-        const res = await api.get<{ symptoms: QuizSymptom[] }>(
-          "/assessments/symptoms",
-          {
-            params: {
-              category: selectedCategory?.id ?? "general",
-              asked,
-              positive,
-              limit: 1,
-            },
-          },
-        );
-        const next = res.data.symptoms?.[0];
-        if (!next) {
-          submitAssessment(newAnswers);
-          return;
-        }
-        setQuestions((prev) => [...prev, next]);
-        setCurrentIndex((i) => i + 1);
-      } catch {
-        submitAssessment(newAnswers);
-      } finally {
-        setIsLoadingNextQuestion(false);
-      }
+      setCurrentIndex((i) => i + 1);
       })();
     },
     [
@@ -290,8 +278,8 @@ export default function AssessmentPage() {
       answers,
       askedKeys,
       maxQuestions,
+      questions.length,
       submitAssessment,
-      selectedCategory?.id,
     ],
   );
 
@@ -408,8 +396,8 @@ export default function AssessmentPage() {
 
             <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
               <QuizProgress
-                current={currentIndex + 1}
-                total={maxQuestions}
+                current={Math.min(currentIndex + 1, questions.length || maxQuestions)}
+                total={questions.length || maxQuestions}
               />
               {isLoadingNextQuestion && !currentQuestion ? (
                 <Card className="max-w-xl border-border/70 bg-card/70">
@@ -421,8 +409,9 @@ export default function AssessmentPage() {
                 <div className="max-w-xl">
                   <QuizQuestionCard
                     question={currentQuestion.text}
+                    section={currentQuestion.section}
                     questionNumber={currentIndex + 1}
-                    totalQuestions={maxQuestions}
+                    totalQuestions={questions.length || maxQuestions}
                     onAnswer={handleAnswer}
                     disabled={isSubmitting || isLoadingNextQuestion}
                   />

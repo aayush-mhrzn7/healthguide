@@ -44,6 +44,25 @@ export function LocationPicker({
   const markerRef = useRef<import("leaflet").Marker | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
 
+  const createPinIcon = () => {
+    const L = leafletRef.current;
+    if (!L) return undefined;
+    return L.divIcon({
+      className: "healthguide-map-pin-wrapper",
+      html: `
+        <div class="healthguide-map-pin">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" />
+            <circle cx="12" cy="10" r="2.8" />
+          </svg>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 28],
+      popupAnchor: [0, -28],
+    });
+  };
+
   useEffect(() => {
     setQuery(address);
   }, [address]);
@@ -70,6 +89,7 @@ export function LocationPicker({
     if (!markerRef.current) {
       markerRef.current = L.marker([lat, lon], {
         draggable: true,
+        icon: createPinIcon(),
       }).addTo(map);
       markerRef.current.on("dragend", () => {
         const pos = markerRef.current?.getLatLng();
@@ -242,7 +262,10 @@ export function LocationPicker({
                   if (map) {
                     if (!markerRef.current && leafletRef.current) {
                       markerRef.current = leafletRef.current
-                        .marker([lat, lon], { draggable: true })
+                        .marker([lat, lon], {
+                          draggable: true,
+                          icon: createPinIcon(),
+                        })
                         .addTo(map);
                       markerRef.current.on("dragend", () => {
                         const pos = markerRef.current?.getLatLng();

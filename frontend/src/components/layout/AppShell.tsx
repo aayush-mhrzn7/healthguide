@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Footer } from "@/components/landing/Footer"
 import { Header } from "@/components/landing/Header"
 import { ThemeProvider } from "@/components/theme/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 
 type AppShellProps = {
   children: React.ReactNode
@@ -20,7 +21,10 @@ export function AppShell({ children }: AppShellProps) {
   if (isAppLayout) {
     return (
       <ThemeProvider>
-        <div className="flex min-h-screen flex-col">{children}</div>
+        <div className="flex min-h-screen flex-col">
+          {children}
+          <Toaster richColors />
+        </div>
       </ThemeProvider>
     )
   }
@@ -31,6 +35,7 @@ export function AppShell({ children }: AppShellProps) {
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <Toaster richColors />
       </div>
     </ThemeProvider>
   )

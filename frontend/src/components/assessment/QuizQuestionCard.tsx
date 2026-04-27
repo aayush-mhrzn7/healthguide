@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 export type QuizQuestionCardProps = {
   question: string;
+  section?: string;
   questionNumber: number;
   totalQuestions: number;
   onAnswer: (answer: boolean) => void;
@@ -19,6 +20,7 @@ export type QuizQuestionCardProps = {
 
 export function QuizQuestionCard({
   question,
+  section,
   questionNumber,
   totalQuestions,
   onAnswer,
@@ -28,6 +30,7 @@ export function QuizQuestionCard({
     <Card className="border-border/80 bg-card/90 shadow-xs transition-shadow hover:shadow-md">
       <CardHeader className="pb-2">
         <CardDescription className="text-xs">
+          {section ? `${section} • ` : ""}
           Question {questionNumber} of {totalQuestions}
         </CardDescription>
         <CardTitle className="text-base font-semibold">{question}</CardTitle>

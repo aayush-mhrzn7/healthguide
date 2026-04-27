@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 import "./globals.css";
 
@@ -25,7 +26,9 @@ export default function RootLayout({
       <body
         className={`${manrope.className} ${manrope.variable} font-sans antialiased bg-background text-foreground`}
       >
-        <AppShell>{children}</AppShell>
+        <QueryProvider>
+          <AppShell>{children}</AppShell>
+        </QueryProvider>
       </body>
     </html>
   );

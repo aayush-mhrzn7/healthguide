@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
@@ -41,9 +42,18 @@ function getStoredUser(): AuthUser | null {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [assessments, setAssessments] = useState<AssessmentRow[]>([]);
   const [userName, setUserName] = useState<string>("there");
-  const [isLoading, setIsLoading] = useState(true);
+  const assessmentsQuery = useQuery({
+    queryKey: ["assessments", "list"],
+    queryFn: async () => {
+      const response = await api.get<{ assessments: AssessmentRow[] }>("/assessments");
+      return response.data.assessments;
+    },
+    staleTime: 15 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+  });
+  const assessments = assessmentsQuery.data ?? [];
+  const isLoading = assessmentsQuery.isLoading;
 
   const confidenceData = ["high", "medium", "low"].map((label) => ({
     label,
@@ -63,28 +73,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const stored = getStoredUser();
     if (stored?.name) setUserName(stored.name.split(" ")[0]);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const load = async () => {
-      try {
-        const assessmentsRes = await api.get<{ assessments: AssessmentRow[] }>(
-          "/assessments",
-        );
-        if (isMounted) setAssessments(assessmentsRes.data.assessments);
-      } catch {
-        if (isMounted) setAssessments([]);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const handleLogout = async () => {
