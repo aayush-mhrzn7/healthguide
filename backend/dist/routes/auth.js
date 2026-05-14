@@ -9,6 +9,8 @@ exports.authRouter = authRouter;
 authRouter.post("/signup", auth_controller_1.signup);
 authRouter.post("/verify-email", auth_controller_1.verifyEmail);
 authRouter.post("/resend-verification", auth_controller_1.resendVerificationEmail);
+authRouter.post("/request-password-reset", auth_controller_1.requestPasswordReset);
+authRouter.post("/reset-password", auth_controller_1.resetPassword);
 authRouter.post("/login", auth_controller_1.login);
 authRouter.post("/refresh", auth_controller_1.refresh);
 authRouter.post("/logout", auth_controller_1.logout);

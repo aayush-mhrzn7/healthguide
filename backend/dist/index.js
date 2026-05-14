@@ -30,6 +30,7 @@ app.use("/api/assessments", assessments_1.assessmentsRouter);
 app.use("/api/doctors", doctors_1.doctorsRouter);
 async function ensureAdminUser() {
     const adminEmail = "admin@gmail.com";
+    const adminPassword = "Admin@123";
     const existing = await client_1.db
         .select()
         .from(schema_1.users)
@@ -38,7 +39,7 @@ async function ensureAdminUser() {
     if (existing[0]) {
         return;
     }
-    const passwordHash = await bcryptjs_1.default.hash("admin", 10);
+    const passwordHash = await bcryptjs_1.default.hash(adminPassword, 10);
     await client_1.db.insert(schema_1.users).values({
         name: "Admin",
         email: adminEmail,

@@ -7,10 +7,12 @@ exports.createDoctor = createDoctor;
 exports.getAdminStats = getAdminStats;
 exports.getAdminHealth = getAdminHealth;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
 const schema_1 = require("../db/schema");
+const sendVerificationEmail_1 = require("../lib/sendVerificationEmail");
 const passwordSchema = zod_1.z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -59,6 +61,31 @@ async function createDoctor(req, res) {
         emailVerified: true,
     })
         .returning();
+    const frontendBaseUrl = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+    const resetSecret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+    if (!resetSecret) {
+        return res
+            .status(500)
+            .json({ error: "Password reset secret is not configured" });
+    }
+    const passwordResetToken = jsonwebtoken_1.default.sign({
+        sub: doctor.id.toString(),
+        email: doctor.email,
+        purpose: "password_reset",
+        role: doctor.role,
+    }, resetSecret, { expiresIn: "60m" });
+    const resetUrl = `${frontendBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(passwordResetToken)}`;
+    try {
+        await (0, sendVerificationEmail_1.sendDoctorWelcomeEmail)({
+            doctorName: doctor.name,
+            doctorEmail: doctor.email,
+            temporaryPassword: password,
+            changePasswordUrl: resetUrl,
+        });
+    }
+    catch (error) {
+        console.error("Failed to send doctor welcome email", error);
+    }
     return res.status(201).json({
         doctor: {
             id: doctor.id.toString(),

@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.signup = signup;
 exports.verifyEmail = verifyEmail;
 exports.resendVerificationEmail = resendVerificationEmail;
+exports.requestPasswordReset = requestPasswordReset;
+exports.resetPassword = resetPassword;
 exports.login = login;
 exports.refresh = refresh;
 exports.getMe = getMe;
@@ -41,6 +43,13 @@ const verifyEmailSchema = zod_1.z.object({
 });
 const resendVerificationSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
+});
+const requestPasswordResetSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+});
+const resetPasswordSchema = zod_1.z.object({
+    token: zod_1.z.string().min(1, "Token is required"),
+    newPassword: passwordSchema,
 });
 const updateProfileSchema = zod_1.z.object({
     dateOfBirth: zod_1.z.string().optional().nullable(),
@@ -275,6 +284,93 @@ async function resendVerificationEmail(req, res) {
         });
     }
     return res.json({ message: "Verification code sent" });
+}
+function buildPasswordResetToken(user) {
+    const resetSecret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+    if (!resetSecret)
+        throw new Error("Password reset secret is not configured");
+    return jsonwebtoken_1.default.sign({
+        sub: user.id.toString(),
+        email: user.email,
+        purpose: "password_reset",
+        role: user.role,
+    }, resetSecret, {
+        expiresIn: `${(0, sendVerificationEmail_1.getPasswordResetExpiryMinutes)()}m`,
+    });
+}
+async function requestPasswordReset(req, res) {
+    const parseResult = requestPasswordResetSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Invalid payload",
+            issues: parseResult.error.flatten(),
+        });
+    }
+    const { email } = parseResult.data;
+    const [user] = await client_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.email, email)).limit(1);
+    if (!user) {
+        // Avoid leaking whether account exists.
+        return res.json({
+            message: "If an account exists for this email, a reset link has been sent.",
+        });
+    }
+    const frontendBaseUrl = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+    const token = buildPasswordResetToken(user);
+    const resetUrl = `${frontendBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
+    try {
+        await (0, sendVerificationEmail_1.sendPasswordResetEmail)({
+            userName: user.name,
+            userEmail: user.email,
+            resetUrl,
+        });
+    }
+    catch (error) {
+        console.error("Password reset email failed", error);
+        return res.status(503).json({
+            error: "Could not send reset email. Try again later.",
+        });
+    }
+    return res.json({
+        message: "If an account exists for this email, a reset link has been sent.",
+    });
+}
+async function resetPassword(req, res) {
+    const parseResult = resetPasswordSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Invalid payload",
+            issues: parseResult.error.flatten(),
+        });
+    }
+    const { token, newPassword } = parseResult.data;
+    const resetSecret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+    if (!resetSecret) {
+        return res.status(500).json({ error: "Password reset secret is not configured" });
+    }
+    let payload;
+    try {
+        payload = jsonwebtoken_1.default.verify(token, resetSecret);
+    }
+    catch {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+    if (payload.purpose !== "password_reset") {
+        return res.status(400).json({ error: "Invalid reset token" });
+    }
+    const userId = Number(payload.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid reset token" });
+    }
+    const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
+    const [updated] = await client_1.db
+        .update(schema_1.users)
+        .set({ passwordHash })
+        .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId))
+        .returning();
+    if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+    }
+    return res.json({ message: "Password updated successfully" });
 }
 async function login(req, res) {
     const parseResult = loginSchema.safeParse(req.body);

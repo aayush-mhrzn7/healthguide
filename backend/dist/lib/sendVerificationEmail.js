@@ -4,12 +4,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOtpExpiryMinutes = getOtpExpiryMinutes;
+exports.getPasswordResetExpiryMinutes = getPasswordResetExpiryMinutes;
 exports.sendVerificationOtpEmail = sendVerificationOtpEmail;
 exports.sendAppointmentBookedEmails = sendAppointmentBookedEmails;
+exports.sendDoctorWelcomeEmail = sendDoctorWelcomeEmail;
+exports.sendPasswordResetEmail = sendPasswordResetEmail;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const OTP_EXPIRY_MINUTES = 15;
+const PASSWORD_RESET_EXPIRY_MINUTES = 60;
 function getOtpExpiryMinutes() {
     return OTP_EXPIRY_MINUTES;
+}
+function getPasswordResetExpiryMinutes() {
+    return PASSWORD_RESET_EXPIRY_MINUTES;
 }
 const smtpHost = process.env.SMTP_HOST?.trim();
 const smtpPort = Number(process.env.SMTP_PORT ?? "587");
@@ -73,4 +80,32 @@ async function sendAppointmentBookedEmails(params) {
             text: `Hi Dr. ${doctorName}, ${patientName} has booked an appointment for ${slotLabel}.`,
         }),
     ]);
+}
+async function sendDoctorWelcomeEmail(params) {
+    const { doctorName, doctorEmail, temporaryPassword, changePasswordUrl } = params;
+    await sendMail({
+        to: doctorEmail,
+        subject: "Your HealthGuide doctor account is ready",
+        html: `<p>Hi Dr. ${doctorName},</p>
+<p>Your doctor account has been created.</p>
+<p><strong>Temporary password:</strong> <code>${temporaryPassword}</code></p>
+<p>For security, please change your password immediately:</p>
+<p><a href="${changePasswordUrl}">${changePasswordUrl}</a></p>
+<p>This link expires in ${PASSWORD_RESET_EXPIRY_MINUTES} minutes.</p>`,
+        text: `Hi Dr. ${doctorName}, your account has been created. Temporary password: ${temporaryPassword}. Change it now: ${changePasswordUrl}. This link expires in ${PASSWORD_RESET_EXPIRY_MINUTES} minutes.`,
+    });
+}
+async function sendPasswordResetEmail(params) {
+    const { userName, userEmail, resetUrl } = params;
+    await sendMail({
+        to: userEmail,
+        subject: "Reset your HealthGuide password",
+        html: `<p>Hi ${userName},</p>
+<p>We received a request to reset your password.</p>
+<p>Use this secure link to set a new password:</p>
+<p><a href="${resetUrl}">${resetUrl}</a></p>
+<p>This link expires in ${PASSWORD_RESET_EXPIRY_MINUTES} minutes.</p>
+<p>If you did not request this, you can safely ignore this email.</p>`,
+        text: `Hi ${userName}, reset your password using this link: ${resetUrl}. It expires in ${PASSWORD_RESET_EXPIRY_MINUTES} minutes. If you did not request this, ignore this email.`,
+    });
 }

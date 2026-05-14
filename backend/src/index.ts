@@ -32,6 +32,7 @@ app.use("/api/doctors", doctorsRouter);
 
 async function ensureAdminUser() {
   const adminEmail = "admin@gmail.com";
+  const adminPassword = "Admin@123";
   const existing = await db
     .select()
     .from(users)
@@ -42,7 +43,7 @@ async function ensureAdminUser() {
     return;
   }
 
-  const passwordHash = await bcrypt.hash("admin", 10);
+  const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   await db.insert(users).values({
     name: "Admin",

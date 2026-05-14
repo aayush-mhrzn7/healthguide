@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 
@@ -12,6 +13,7 @@ import {
   type DbAssessment,
   type DbUser,
 } from "../db/schema";
+import { sendDoctorWelcomeEmail } from "../lib/sendVerificationEmail";
 
 const passwordSchema = z
   .string()
@@ -80,6 +82,38 @@ export async function createDoctor(req: Request, res: Response) {
       emailVerified: true,
     })
     .returning();
+
+  const frontendBaseUrl =
+    process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+  const resetSecret =
+    process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+  if (!resetSecret) {
+    return res
+      .status(500)
+      .json({ error: "Password reset secret is not configured" });
+  }
+  const passwordResetToken = jwt.sign(
+    {
+      sub: doctor.id.toString(),
+      email: doctor.email,
+      purpose: "password_reset",
+      role: doctor.role,
+    },
+    resetSecret,
+    { expiresIn: "60m" },
+  );
+  const resetUrl = `${frontendBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(passwordResetToken)}`;
+
+  try {
+    await sendDoctorWelcomeEmail({
+      doctorName: doctor.name,
+      doctorEmail: doctor.email,
+      temporaryPassword: password,
+      changePasswordUrl: resetUrl,
+    });
+  } catch (error) {
+    console.error("Failed to send doctor welcome email", error);
+  }
 
   return res.status(201).json({
     doctor: {

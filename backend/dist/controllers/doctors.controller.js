@@ -20,6 +20,10 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 async function listDoctors(req, res) {
     const { authUser } = req;
     const specialty = req.query.specialty;
+    const maxDistanceRaw = Number(req.query.maxDistanceKm ?? 10);
+    const maxDistanceKm = Number.isFinite(maxDistanceRaw) && maxDistanceRaw > 0
+        ? Math.min(maxDistanceRaw, 1000)
+        : 10;
     let userCoordinates = null;
     if (authUser) {
         const profile = await client_1.db
@@ -65,6 +69,13 @@ async function listDoctors(req, res) {
             distanceKm,
         };
     })
+        .filter((d) => {
+        if (!userCoordinates)
+            return true;
+        if (d.distanceKm == null)
+            return false;
+        return d.distanceKm <= maxDistanceKm;
+    })
         .sort((a, b) => {
         if (a.distanceKm == null && b.distanceKm == null)
             return 0;
@@ -75,6 +86,7 @@ async function listDoctors(req, res) {
         return a.distanceKm - b.distanceKm;
     });
     return res.json({
+        maxDistanceKm,
         doctors: withDistance.map((d) => ({
             id: d.id,
             name: d.name,

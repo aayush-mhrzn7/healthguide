@@ -10,6 +10,8 @@ import { emailOtps, users, type DbUser } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
 import {
   getOtpExpiryMinutes,
+  getPasswordResetExpiryMinutes,
+  sendPasswordResetEmail,
   sendVerificationOtpEmail,
 } from "../lib/sendVerificationEmail";
 
@@ -43,6 +45,15 @@ const verifyEmailSchema = z.object({
 
 const resendVerificationSchema = z.object({
   email: z.string().email(),
+});
+
+const requestPasswordResetSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  newPassword: passwordSchema,
 });
 
 const updateProfileSchema = z.object({
@@ -323,6 +334,109 @@ export async function resendVerificationEmail(req: Request, res: Response) {
   }
 
   return res.json({ message: "Verification code sent" });
+}
+
+function buildPasswordResetToken(user: DbUser) {
+  const resetSecret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+  if (!resetSecret) throw new Error("Password reset secret is not configured");
+
+  return jwt.sign(
+    {
+      sub: user.id.toString(),
+      email: user.email,
+      purpose: "password_reset",
+      role: user.role,
+    },
+    resetSecret,
+    {
+      expiresIn: `${getPasswordResetExpiryMinutes()}m`,
+    },
+  );
+}
+
+export async function requestPasswordReset(req: Request, res: Response) {
+  const parseResult = requestPasswordResetSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      issues: parseResult.error.flatten(),
+    });
+  }
+
+  const { email } = parseResult.data;
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user) {
+    // Avoid leaking whether account exists.
+    return res.json({
+      message: "If an account exists for this email, a reset link has been sent.",
+    });
+  }
+
+  const frontendBaseUrl = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+  const token = buildPasswordResetToken(user);
+  const resetUrl = `${frontendBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
+
+  try {
+    await sendPasswordResetEmail({
+      userName: user.name,
+      userEmail: user.email,
+      resetUrl,
+    });
+  } catch (error) {
+    console.error("Password reset email failed", error);
+    return res.status(503).json({
+      error: "Could not send reset email. Try again later.",
+    });
+  }
+
+  return res.json({
+    message: "If an account exists for this email, a reset link has been sent.",
+  });
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const parseResult = resetPasswordSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      issues: parseResult.error.flatten(),
+    });
+  }
+
+  const { token, newPassword } = parseResult.data;
+  const resetSecret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+  if (!resetSecret) {
+    return res.status(500).json({ error: "Password reset secret is not configured" });
+  }
+
+  let payload: { sub: string; purpose?: string };
+  try {
+    payload = jwt.verify(token, resetSecret) as { sub: string; purpose?: string };
+  } catch {
+    return res.status(400).json({ error: "Invalid or expired reset token" });
+  }
+
+  if (payload.purpose !== "password_reset") {
+    return res.status(400).json({ error: "Invalid reset token" });
+  }
+
+  const userId = Number(payload.sub);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "Invalid reset token" });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const [updated] = await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, userId))
+    .returning();
+
+  if (!updated) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  return res.json({ message: "Password updated successfully" });
 }
 
 export async function login(req: Request, res: Response) {
