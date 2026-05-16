@@ -20,6 +20,8 @@ const submitAssessmentSchema = zod_1.z.object({
     category: zod_1.z.string().trim().optional(),
 });
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
+const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "qwen/qwen3-32b";
 const ADAPTIVE_LIMIT = 30;
 const FOLLOWUP_FAMILIES = [
     { key: "fever", keywords: ["fever", "chills", "sweat"] },
@@ -205,6 +207,107 @@ function buildReasoning(prediction) {
         "This is a triage aid, not a definitive diagnosis.",
     ].join(" ");
 }
+function fallbackAdvice(prediction) {
+    return {
+        overview: `${prediction.disease} can have overlapping symptoms with several other conditions, so this result should be treated as a starting point for a conversation with a clinician.`,
+        medications: [
+            "Avoid starting prescription medication without a clinician's guidance.",
+            "For mild fever or aches, some people use over-the-counter paracetamol/acetaminophen if it is safe for them.",
+            "If you already take medicines or have liver, kidney, stomach, heart, pregnancy, or allergy concerns, ask a doctor or pharmacist first.",
+        ],
+        selfCare: [
+            "Rest, hydrate, and keep a simple symptom log with temperature, pain level, and timing.",
+            "Book a doctor if symptoms persist, worsen, or feel unusual for you.",
+        ],
+        warningSigns: [
+            "Severe chest pain, breathing difficulty, fainting, confusion, blue lips, severe dehydration, or rapidly worsening symptoms need urgent medical care.",
+        ],
+        disclaimer: "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        source: "fallback",
+    };
+}
+function coerceAdviceJson(value, prediction) {
+    if (!value || typeof value !== "object")
+        return fallbackAdvice(prediction);
+    const obj = value;
+    return {
+        overview: typeof obj.overview === "string" && obj.overview.trim()
+            ? obj.overview.trim()
+            : fallbackAdvice(prediction).overview,
+        medications: Array.isArray(obj.medications)
+            ? obj.medications.filter((x) => typeof x === "string").slice(0, 5)
+            : fallbackAdvice(prediction).medications,
+        selfCare: Array.isArray(obj.selfCare)
+            ? obj.selfCare.filter((x) => typeof x === "string").slice(0, 5)
+            : fallbackAdvice(prediction).selfCare,
+        warningSigns: Array.isArray(obj.warningSigns)
+            ? obj.warningSigns.filter((x) => typeof x === "string").slice(0, 5)
+            : fallbackAdvice(prediction).warningSigns,
+        disclaimer: typeof obj.disclaimer === "string" && obj.disclaimer.trim()
+            ? obj.disclaimer.trim()
+            : fallbackAdvice(prediction).disclaimer,
+        source: "groq",
+    };
+}
+async function buildGroqAdvice(prediction) {
+    if (!GROQ_API_KEY)
+        return fallbackAdvice(prediction);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+                Authorization: `Bearer ${GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                temperature: 0.2,
+                max_tokens: 900,
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: "system",
+                        content: "You write cautious patient education for a symptom-checker app. Return only valid JSON. Do not claim a confirmed diagnosis. Keep medication suggestions general, safe, and framed as options to discuss with a doctor/pharmacist. Always include this exact disclaimer: This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+                    },
+                    {
+                        role: "user",
+                        content: JSON.stringify({
+                            predictedDisease: prediction.disease,
+                            recommendedSpecialty: prediction.specialty,
+                            confidence: prediction.confidence,
+                            selectedSymptoms: prediction.selectedSymptoms,
+                            requiredShape: {
+                                overview: "2-3 plain-language sentences about what this disease/condition generally is",
+                                medications: ["3-5 cautious medicine or treatment discussion points"],
+                                selfCare: ["2-4 practical home-care or next-step points"],
+                                warningSigns: ["2-4 urgent-care warning signs"],
+                                disclaimer: "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+                            },
+                        }),
+                    },
+                ],
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`Groq advice failed (${response.status})`);
+        }
+        const data = (await response.json());
+        const content = data.choices?.[0]?.message?.content;
+        if (!content)
+            return fallbackAdvice(prediction);
+        return coerceAdviceJson(JSON.parse(content), prediction);
+    }
+    catch (error) {
+        console.error("Groq advice generation failed", error);
+        return fallbackAdvice(prediction);
+    }
+    finally {
+        clearTimeout(timeout);
+    }
+}
 async function predictWithMlApi(answers, category) {
     const selectedSymptoms = buildSelectedSymptoms(answers);
     const features = await fetchMlFeatures();
@@ -304,6 +407,7 @@ async function submitAssessment(req, res) {
         });
     }
     const reasoning = buildReasoning(prediction);
+    const llmAdvice = await buildGroqAdvice(prediction);
     const [created] = await client_1.db
         .insert(schema_1.assessments)
         .values({
@@ -314,6 +418,7 @@ async function submitAssessment(req, res) {
         confidence: prediction.confidence,
         topPredictions: prediction.topPredictions,
         reasoning,
+        llmAdvice,
         selectedSymptoms: prediction.selectedSymptoms,
     })
         .returning();
@@ -325,6 +430,7 @@ async function submitAssessment(req, res) {
             confidence: created.confidence,
             topPredictions: created.topPredictions ?? [],
             reasoning: created.reasoning ?? "",
+            llmAdvice: created.llmAdvice ?? llmAdvice,
             selectedSymptoms: created.selectedSymptoms ?? [],
             createdAt: created.createdAt,
         },
@@ -348,6 +454,7 @@ async function getUserAssessments(req, res) {
             confidence: a.confidence,
             topPredictions: a.topPredictions ?? [],
             reasoning: a.reasoning ?? "",
+            llmAdvice: a.llmAdvice ?? null,
             selectedSymptoms: a.selectedSymptoms ?? [],
             createdAt: a.createdAt,
             answers: a.answers,
@@ -377,6 +484,7 @@ async function getAssessmentById(req, res) {
             confidence: row.confidence,
             topPredictions: row.topPredictions ?? [],
             reasoning: row.reasoning ?? "",
+            llmAdvice: row.llmAdvice ?? null,
             selectedSymptoms: row.selectedSymptoms ?? [],
             createdAt: row.createdAt,
             answers: row.answers,
@@ -403,7 +511,7 @@ async function getDashboardSummary(req, res) {
         .limit(10);
     const nextAppointment = upcomingRows
         .filter((r) => new Date(r.appointment.startsAt) >= now &&
-        r.appointment.status === "scheduled")
+        ["pending", "accepted", "scheduled"].includes(r.appointment.status))
         .map((r) => ({
         id: r.appointment.id,
         doctorName: r.doctor?.name ?? "Unknown doctor",

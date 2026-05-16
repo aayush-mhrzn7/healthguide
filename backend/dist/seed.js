@@ -45,9 +45,11 @@ async function seed() {
     console.log("🗑️  Dropping all rows (appointments → assessments → users)…");
     await client_1.db.delete(schema_1.appointments);
     await client_1.db.delete(schema_1.assessments);
+    await client_1.db.delete(schema_1.emailOtps);
     await client_1.db.delete(schema_1.users);
     const { sql } = await Promise.resolve().then(() => __importStar(require("drizzle-orm")));
     await client_1.db.execute(sql `ALTER SEQUENCE users_id_seq RESTART WITH 1`);
+    await client_1.db.execute(sql `ALTER SEQUENCE email_otps_id_seq RESTART WITH 1`);
     await client_1.db.execute(sql `ALTER SEQUENCE assessments_id_seq RESTART WITH 1`);
     await client_1.db.execute(sql `ALTER SEQUENCE appointments_id_seq RESTART WITH 1`);
     console.log("   Done.\n");
@@ -60,22 +62,83 @@ async function seed() {
         emailVerified: true,
     });
     console.log(`👤  Seeding user:  ${users_json_1.default.user.email}`);
-    await client_1.db.insert(schema_1.users).values({
+    const [primaryUser] = await client_1.db.insert(schema_1.users).values({
         name: "Aayush",
         email: users_json_1.default.user.email,
         passwordHash: await bcryptjs_1.default.hash(users_json_1.default.user.password, 10),
         role: "user",
         emailVerified: true,
-    });
+        phone: "+977 9800000000",
+        address: "Kathmandu, Nepal",
+        latitude: 27.7172,
+        longitude: 85.324,
+    }).returning();
+    const userByEmail = new Map([[users_json_1.default.user.email, primaryUser.id]]);
+    for (const patient of users_json_1.default.patients ?? []) {
+        console.log(`👤  Seeding patient: ${patient.email}`);
+        const [created] = await client_1.db.insert(schema_1.users).values({
+            name: patient.name,
+            email: patient.email,
+            passwordHash: await bcryptjs_1.default.hash(patient.password, 10),
+            role: "user",
+            emailVerified: true,
+            phone: patient.phone,
+            address: patient.address,
+            latitude: patient.latitude,
+            longitude: patient.longitude,
+        }).returning();
+        userByEmail.set(patient.email, created.id);
+    }
+    const doctorByEmail = new Map();
     for (const doc of users_json_1.default.doctors) {
         console.log(`🩺  Seeding doctor: ${doc.email} (${doc.specialty})`);
-        await client_1.db.insert(schema_1.users).values({
+        const [created] = await client_1.db.insert(schema_1.users).values({
             name: doc.name,
             email: doc.email,
             passwordHash: await bcryptjs_1.default.hash(doc.password, 10),
             role: "doctor",
             specialty: doc.specialty,
+            bio: doc.bio,
+            phone: doc.phone,
+            address: doc.address,
+            latitude: doc.latitude,
+            longitude: doc.longitude,
             emailVerified: true,
+        }).returning();
+        doctorByEmail.set(doc.email, created.id);
+    }
+    const now = new Date();
+    for (const item of users_json_1.default.assessments ?? []) {
+        const userId = userByEmail.get(item.userEmail);
+        if (!userId)
+            continue;
+        console.log(`🧾  Seeding assessment: ${item.predictedDisease}`);
+        await client_1.db.insert(schema_1.assessments).values({
+            userId,
+            answers: item.answers,
+            predictedDisease: item.predictedDisease,
+            recommendedSpecialty: item.recommendedSpecialty,
+            confidence: item.confidence,
+            topPredictions: item.topPredictions,
+            reasoning: item.reasoning,
+            llmAdvice: item.llmAdvice,
+            selectedSymptoms: item.selectedSymptoms,
+            createdAt: new Date(now.getTime() - item.daysAgo * 24 * 60 * 60 * 1000),
+        });
+    }
+    for (const item of users_json_1.default.appointments ?? []) {
+        const patientId = userByEmail.get(item.patientEmail);
+        const doctorId = doctorByEmail.get(item.doctorEmail);
+        if (!patientId || !doctorId)
+            continue;
+        const startsAt = new Date(now.getTime() + item.startsInHours * 60 * 60 * 1000);
+        console.log(`📅  Seeding appointment: ${item.status} (${item.patientEmail})`);
+        await client_1.db.insert(schema_1.appointments).values({
+            patientId,
+            doctorId,
+            startsAt,
+            endsAt: new Date(startsAt.getTime() + 30 * 60 * 1000),
+            status: item.status,
         });
     }
     console.log("\n✅  Seed complete.");

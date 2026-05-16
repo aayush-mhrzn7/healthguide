@@ -21,6 +21,8 @@ const submitAssessmentSchema = z.object({
 });
 
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
+const GROQ_API_KEY = process.env.GROQ_API_KEY?.trim();
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "qwen/qwen3-32b";
 const ADAPTIVE_LIMIT = 30;
 
 type MlPredictResponse = {
@@ -40,6 +42,15 @@ type PredictionResult = {
   confidence: "high" | "medium" | "low";
   topPredictions: Array<{ disease: string; confidence: number }>;
   selectedSymptoms: string[];
+};
+
+type AssessmentAdvice = {
+  overview: string;
+  medications: string[];
+  selfCare: string[];
+  warningSigns: string[];
+  disclaimer: string;
+  source: "groq" | "fallback";
 };
 
 type QuestionFamily = { key: string; keywords: string[] };
@@ -266,6 +277,117 @@ function buildReasoning(prediction: PredictionResult): string {
   ].join(" ");
 }
 
+function fallbackAdvice(prediction: PredictionResult): AssessmentAdvice {
+  return {
+    overview: `${prediction.disease} can have overlapping symptoms with several other conditions, so this result should be treated as a starting point for a conversation with a clinician.`,
+    medications: [
+      "Avoid starting prescription medication without a clinician's guidance.",
+      "For mild fever or aches, some people use over-the-counter paracetamol/acetaminophen if it is safe for them.",
+      "If you already take medicines or have liver, kidney, stomach, heart, pregnancy, or allergy concerns, ask a doctor or pharmacist first.",
+    ],
+    selfCare: [
+      "Rest, hydrate, and keep a simple symptom log with temperature, pain level, and timing.",
+      "Book a doctor if symptoms persist, worsen, or feel unusual for you.",
+    ],
+    warningSigns: [
+      "Severe chest pain, breathing difficulty, fainting, confusion, blue lips, severe dehydration, or rapidly worsening symptoms need urgent medical care.",
+    ],
+    disclaimer:
+      "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+    source: "fallback",
+  };
+}
+
+function coerceAdviceJson(value: unknown, prediction: PredictionResult): AssessmentAdvice {
+  if (!value || typeof value !== "object") return fallbackAdvice(prediction);
+  const obj = value as Partial<AssessmentAdvice>;
+  return {
+    overview:
+      typeof obj.overview === "string" && obj.overview.trim()
+        ? obj.overview.trim()
+        : fallbackAdvice(prediction).overview,
+    medications: Array.isArray(obj.medications)
+      ? obj.medications.filter((x): x is string => typeof x === "string").slice(0, 5)
+      : fallbackAdvice(prediction).medications,
+    selfCare: Array.isArray(obj.selfCare)
+      ? obj.selfCare.filter((x): x is string => typeof x === "string").slice(0, 5)
+      : fallbackAdvice(prediction).selfCare,
+    warningSigns: Array.isArray(obj.warningSigns)
+      ? obj.warningSigns.filter((x): x is string => typeof x === "string").slice(0, 5)
+      : fallbackAdvice(prediction).warningSigns,
+    disclaimer:
+      typeof obj.disclaimer === "string" && obj.disclaimer.trim()
+        ? obj.disclaimer.trim()
+        : fallbackAdvice(prediction).disclaimer,
+    source: "groq",
+  };
+}
+
+async function buildGroqAdvice(prediction: PredictionResult): Promise<AssessmentAdvice> {
+  if (!GROQ_API_KEY) return fallbackAdvice(prediction);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        temperature: 0.2,
+        max_tokens: 900,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You write cautious patient education for a symptom-checker app. Return only valid JSON. Do not claim a confirmed diagnosis. Keep medication suggestions general, safe, and framed as options to discuss with a doctor/pharmacist. Always include this exact disclaimer: This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              predictedDisease: prediction.disease,
+              recommendedSpecialty: prediction.specialty,
+              confidence: prediction.confidence,
+              selectedSymptoms: prediction.selectedSymptoms,
+              requiredShape: {
+                overview: "2-3 plain-language sentences about what this disease/condition generally is",
+                medications: ["3-5 cautious medicine or treatment discussion points"],
+                selfCare: ["2-4 practical home-care or next-step points"],
+                warningSigns: ["2-4 urgent-care warning signs"],
+                disclaimer:
+                  "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+              },
+            }),
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq advice failed (${response.status})`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return fallbackAdvice(prediction);
+
+    return coerceAdviceJson(JSON.parse(content), prediction);
+  } catch (error) {
+    console.error("Groq advice generation failed", error);
+    return fallbackAdvice(prediction);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function predictWithMlApi(
   answers: Record<string, boolean>,
   category: Category,
@@ -390,6 +512,7 @@ export async function submitAssessment(req: Request, res: Response) {
   }
 
   const reasoning = buildReasoning(prediction);
+  const llmAdvice = await buildGroqAdvice(prediction);
 
   const [created] = await db
     .insert(assessments)
@@ -401,6 +524,7 @@ export async function submitAssessment(req: Request, res: Response) {
       confidence: prediction.confidence,
       topPredictions: prediction.topPredictions,
       reasoning,
+      llmAdvice,
       selectedSymptoms: prediction.selectedSymptoms,
     })
     .returning();
@@ -413,6 +537,7 @@ export async function submitAssessment(req: Request, res: Response) {
       confidence: created.confidence,
       topPredictions: created.topPredictions ?? [],
       reasoning: created.reasoning ?? "",
+      llmAdvice: created.llmAdvice ?? llmAdvice,
       selectedSymptoms: created.selectedSymptoms ?? [],
       createdAt: created.createdAt,
     },
@@ -438,6 +563,7 @@ export async function getUserAssessments(req: Request, res: Response) {
       confidence: a.confidence,
       topPredictions: a.topPredictions ?? [],
       reasoning: a.reasoning ?? "",
+      llmAdvice: a.llmAdvice ?? null,
       selectedSymptoms: a.selectedSymptoms ?? [],
       createdAt: a.createdAt,
       answers: a.answers,
@@ -470,6 +596,7 @@ export async function getAssessmentById(req: Request, res: Response) {
       confidence: row.confidence,
       topPredictions: row.topPredictions ?? [],
       reasoning: row.reasoning ?? "",
+      llmAdvice: row.llmAdvice ?? null,
       selectedSymptoms: row.selectedSymptoms ?? [],
       createdAt: row.createdAt,
       answers: row.answers,
@@ -502,7 +629,7 @@ export async function getDashboardSummary(req: Request, res: Response) {
       .filter(
         (r) =>
           new Date(r.appointment.startsAt) >= now &&
-          r.appointment.status === "scheduled",
+          ["pending", "accepted", "scheduled"].includes(r.appointment.status),
       )
       .map((r) => ({
         id: r.appointment.id,

@@ -13,6 +13,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
 const schema_1 = require("../db/schema");
 const sendVerificationEmail_1 = require("../lib/sendVerificationEmail");
+const specialties_1 = require("../constants/specialties");
 const passwordSchema = zod_1.z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -21,11 +22,12 @@ const createDoctorSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, "Name is required"),
     email: zod_1.z.string().email(),
     password: passwordSchema,
+    phone: zod_1.z.string().trim().optional().nullable(),
     clinicLocation: zod_1.z.string().optional().nullable(),
     clinicLatitude: zod_1.z.number().finite().optional().nullable(),
     clinicLongitude: zod_1.z.number().finite().optional().nullable(),
     specialty: zod_1.z
-        .enum(["general", "respiratory", "allergy", "cardiology"])
+        .enum(specialties_1.DOCTOR_SPECIALTIES)
         .optional()
         .default("general"),
 });
@@ -37,7 +39,7 @@ async function createDoctor(req, res) {
             issues: parseResult.error.flatten(),
         });
     }
-    const { name, email, password, specialty, clinicLocation, clinicLatitude, clinicLongitude, } = parseResult.data;
+    const { name, email, password, phone, specialty, clinicLocation, clinicLatitude, clinicLongitude, } = parseResult.data;
     const existing = await client_1.db
         .select()
         .from(schema_1.users)
@@ -55,6 +57,7 @@ async function createDoctor(req, res) {
         passwordHash,
         role: "doctor",
         specialty,
+        phone: phone && phone.trim() ? phone.trim() : null,
         address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
         latitude: clinicLatitude ?? null,
         longitude: clinicLongitude ?? null,
@@ -93,6 +96,7 @@ async function createDoctor(req, res) {
             email: doctor.email,
             role: doctor.role,
             specialty: doctor.specialty,
+            phone: doctor.phone,
             clinicLocation: doctor.address,
             clinicLatitude: doctor.latitude,
             clinicLongitude: doctor.longitude,

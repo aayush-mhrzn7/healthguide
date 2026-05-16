@@ -12,6 +12,7 @@ exports.users = (0, pg_core_1.pgTable)("users", {
     role: (0, pg_core_1.text)("role").notNull().default("user"),
     specialty: (0, pg_core_1.text)("specialty"), // For doctors: e.g. "general", "cardiology", "respiratory"
     bio: (0, pg_core_1.text)("bio"), // For doctors: short bio/about
+    profileImageUrl: (0, pg_core_1.text)("profile_image_url"),
     dateOfBirth: (0, pg_core_1.date)("date_of_birth", { mode: "date" }),
     gender: (0, pg_core_1.text)("gender"),
     bloodType: (0, pg_core_1.text)("blood_type"),
@@ -47,6 +48,7 @@ exports.assessments = (0, pg_core_1.pgTable)("assessments", {
     confidence: (0, pg_core_1.text)("confidence").notNull(), // "high" | "medium" | "low"
     topPredictions: (0, pg_core_1.jsonb)("top_predictions"),
     reasoning: (0, pg_core_1.text)("reasoning"),
+    llmAdvice: (0, pg_core_1.jsonb)("llm_advice"),
     selectedSymptoms: (0, pg_core_1.jsonb)("selected_symptoms"),
     createdAt: (0, pg_core_1.timestamp)("created_at", { mode: "date" })
         .defaultNow()
@@ -62,7 +64,7 @@ exports.appointments = (0, pg_core_1.pgTable)("appointments", {
         .references(() => exports.users.id, { onDelete: "cascade" }),
     startsAt: (0, pg_core_1.timestamp)("starts_at", { mode: "date" }).notNull(),
     endsAt: (0, pg_core_1.timestamp)("ends_at", { mode: "date" }).notNull(),
-    status: (0, pg_core_1.text)("status").notNull().default("scheduled"),
+    status: (0, pg_core_1.text)("status").notNull().default("pending"),
     createdAt: (0, pg_core_1.timestamp)("created_at", { mode: "date" })
         .defaultNow()
         .notNull(),

@@ -66,6 +66,7 @@ const updateProfileSchema = z.object({
   longitude: z.number().finite().optional().nullable(),
   specialty: z.string().optional().nullable(),
   bio: z.string().optional().nullable(),
+  profileImageUrl: z.string().url().optional().nullable(),
   preferredCommunication: z.string().optional().nullable(),
   primaryCarePreference: z.string().optional().nullable(),
 });
@@ -135,6 +136,7 @@ function publicUserFields(user: DbUser) {
     longitude: user.longitude,
     preferredCommunication: user.preferredCommunication,
     primaryCarePreference: user.primaryCarePreference,
+    profileImageUrl: user.profileImageUrl,
   };
 }
 
@@ -609,6 +611,7 @@ export async function updateMe(req: Request, res: Response) {
     longitude,
     specialty,
     bio,
+    profileImageUrl,
     preferredCommunication,
     primaryCarePreference,
   } = parseResult.data;
@@ -623,6 +626,13 @@ export async function updateMe(req: Request, res: Response) {
   if (typeof bio !== "undefined") {
     updateValues.bio =
       bio && bio.trim().length > 0 ? bio.trim() : null;
+  }
+
+  if (typeof profileImageUrl !== "undefined") {
+    updateValues.profileImageUrl =
+      profileImageUrl && profileImageUrl.trim().length > 0
+        ? profileImageUrl.trim()
+        : null;
   }
 
   if (typeof preferredCommunication !== "undefined") {
@@ -704,5 +714,4 @@ export async function logout(req: Request, res: Response) {
     .status(200)
     .json({ message: "Logged out" });
 }
-
 

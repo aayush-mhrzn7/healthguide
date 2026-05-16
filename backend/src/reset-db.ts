@@ -20,6 +20,7 @@ async function resetDatabase() {
       role TEXT NOT NULL DEFAULT 'user',
       specialty TEXT,
       bio TEXT,
+      profile_image_url TEXT,
       date_of_birth DATE,
       gender TEXT,
       blood_type TEXT,
@@ -53,6 +54,7 @@ async function resetDatabase() {
       confidence TEXT NOT NULL,
       top_predictions JSONB,
       reasoning TEXT,
+      llm_advice JSONB,
       selected_symptoms JSONB,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
@@ -65,7 +67,7 @@ async function resetDatabase() {
       doctor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       starts_at TIMESTAMP NOT NULL,
       ends_at TIMESTAMP NOT NULL,
-      status TEXT NOT NULL DEFAULT 'scheduled',
+      status TEXT NOT NULL DEFAULT 'pending',
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);

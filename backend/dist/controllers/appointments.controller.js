@@ -4,6 +4,7 @@ exports.createAppointment = createAppointment;
 exports.getDoctorAppointments = getDoctorAppointments;
 exports.getUserAppointments = getUserAppointments;
 exports.getDoctorBookedSlots = getDoctorBookedSlots;
+exports.updateDoctorAppointmentStatus = updateDoctorAppointmentStatus;
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
 const client_1 = require("../db/client");
@@ -13,6 +14,9 @@ const createAppointmentSchema = zod_1.z.object({
     doctorId: zod_1.z.number().int().positive(),
     startsAt: zod_1.z.string().min(1),
     endsAt: zod_1.z.string().min(1),
+});
+const updateAppointmentStatusSchema = zod_1.z.object({
+    status: zod_1.z.enum(["accepted", "denied"]),
 });
 async function createAppointment(req, res) {
     const { authUser } = req;
@@ -50,6 +54,7 @@ async function createAppointment(req, res) {
         patientId: authUser.id,
         startsAt: new Date(startsAt),
         endsAt: new Date(endsAt),
+        status: "pending",
     })
         .returning();
     try {
@@ -98,6 +103,9 @@ async function getDoctorAppointments(req, res) {
         endsAt: row.appointment.endsAt,
         status: row.appointment.status,
         patientName: row.patient?.name ?? "Unknown patient",
+        patientEmail: row.patient?.email ?? null,
+        patientPhone: row.patient?.phone ?? null,
+        patientProfileImageUrl: row.patient?.profileImageUrl ?? null,
     }));
     return res.json({ appointments: data });
 }
@@ -120,6 +128,10 @@ async function getUserAppointments(req, res) {
         doctorId: row.appointment.doctorId,
         doctorName: row.doctor?.name ?? "Unknown doctor",
         doctorEmail: row.doctor?.email,
+        doctorPhone: row.doctor?.phone,
+        doctorSpecialty: row.doctor?.specialty ?? "general",
+        doctorClinicLocation: row.doctor?.address ?? null,
+        doctorProfileImageUrl: row.doctor?.profileImageUrl ?? null,
         startsAt: row.appointment.startsAt,
         endsAt: row.appointment.endsAt,
         status: row.appointment.status,
@@ -134,11 +146,66 @@ async function getDoctorBookedSlots(req, res) {
     const rows = await client_1.db
         .select({ startsAt: schema_1.appointments.startsAt, endsAt: schema_1.appointments.endsAt })
         .from(schema_1.appointments)
-        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.appointments.doctorId, doctorId), (0, drizzle_orm_1.eq)(schema_1.appointments.status, "scheduled")));
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.appointments.doctorId, doctorId), (0, drizzle_orm_1.inArray)(schema_1.appointments.status, ["pending", "accepted", "scheduled"])));
     return res.json({
         slots: rows.map((r) => ({
             startsAt: r.startsAt,
             endsAt: r.endsAt,
         })),
     });
+}
+async function updateDoctorAppointmentStatus(req, res) {
+    const { authUser } = req;
+    if (!authUser) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    const appointmentId = Number(req.params.id);
+    if (!Number.isInteger(appointmentId) || appointmentId <= 0) {
+        return res.status(400).json({ error: "Invalid appointment id" });
+    }
+    const parseResult = updateAppointmentStatusSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Invalid payload",
+            issues: parseResult.error.flatten(),
+        });
+    }
+    const [row] = await client_1.db
+        .select({ appointment: schema_1.appointments, patient: schema_1.users })
+        .from(schema_1.appointments)
+        .leftJoin(schema_1.users, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.appointments.patientId))
+        .where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(schema_1.appointments.id, appointmentId), (0, drizzle_orm_1.eq)(schema_1.appointments.doctorId, authUser.id)))
+        .limit(1);
+    if (!row) {
+        return res.status(404).json({ error: "Appointment not found" });
+    }
+    const [doctor] = await client_1.db
+        .select()
+        .from(schema_1.users)
+        .where((0, drizzle_orm_1.eq)(schema_1.users.id, authUser.id))
+        .limit(1);
+    const [updated] = await client_1.db
+        .update(schema_1.appointments)
+        .set({ status: parseResult.data.status })
+        .where((0, drizzle_orm_1.eq)(schema_1.appointments.id, appointmentId))
+        .returning();
+    if (!updated) {
+        return res.status(404).json({ error: "Appointment not found" });
+    }
+    if (row.patient && doctor) {
+        try {
+            await (0, sendVerificationEmail_1.sendAppointmentStatusEmail)({
+                patientName: row.patient.name,
+                patientEmail: row.patient.email,
+                doctorName: doctor.name,
+                startsAt: updated.startsAt,
+                endsAt: updated.endsAt,
+                status: parseResult.data.status,
+            });
+        }
+        catch (error) {
+            console.error("Failed to send appointment status email", error);
+        }
+    }
+    return res.json({ appointment: serializeAppointment(updated) });
 }

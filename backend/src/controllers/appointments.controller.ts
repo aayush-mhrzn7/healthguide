@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, inArray } from "drizzle-orm";
 
 import { db } from "../db/client";
 import {
@@ -10,12 +10,19 @@ import {
   type DbUser,
 } from "../db/schema";
 import type { AuthRequest } from "../middleware/verifyJwt";
-import { sendAppointmentBookedEmails } from "../lib/sendVerificationEmail";
+import {
+  sendAppointmentBookedEmails,
+  sendAppointmentStatusEmail,
+} from "../lib/sendVerificationEmail";
 
 const createAppointmentSchema = z.object({
   doctorId: z.number().int().positive(),
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
+});
+
+const updateAppointmentStatusSchema = z.object({
+  status: z.enum(["accepted", "denied"]),
 });
 
 export async function createAppointment(req: Request, res: Response) {
@@ -62,6 +69,7 @@ export async function createAppointment(req: Request, res: Response) {
       patientId: authUser.id,
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
+      status: "pending",
     })
     .returning();
 
@@ -117,6 +125,9 @@ export async function getDoctorAppointments(req: Request, res: Response) {
       endsAt: row.appointment.endsAt,
       status: row.appointment.status,
       patientName: row.patient?.name ?? "Unknown patient",
+      patientEmail: row.patient?.email ?? null,
+      patientPhone: row.patient?.phone ?? null,
+      patientProfileImageUrl: row.patient?.profileImageUrl ?? null,
     }),
   );
 
@@ -146,6 +157,10 @@ export async function getUserAppointments(req: Request, res: Response) {
       doctorId: row.appointment.doctorId,
       doctorName: row.doctor?.name ?? "Unknown doctor",
       doctorEmail: row.doctor?.email,
+      doctorPhone: row.doctor?.phone,
+      doctorSpecialty: row.doctor?.specialty ?? "general",
+      doctorClinicLocation: row.doctor?.address ?? null,
+      doctorProfileImageUrl: row.doctor?.profileImageUrl ?? null,
       startsAt: row.appointment.startsAt,
       endsAt: row.appointment.endsAt,
       status: row.appointment.status,
@@ -168,7 +183,7 @@ export async function getDoctorBookedSlots(req: Request, res: Response) {
     .where(
       and(
         eq(appointments.doctorId, doctorId),
-        eq(appointments.status, "scheduled")
+        inArray(appointments.status, ["pending", "accepted", "scheduled"])
       )
     );
 
@@ -180,3 +195,67 @@ export async function getDoctorBookedSlots(req: Request, res: Response) {
   });
 }
 
+export async function updateDoctorAppointmentStatus(req: Request, res: Response) {
+  const { authUser } = req as AuthRequest;
+
+  if (!authUser) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const appointmentId = Number(req.params.id);
+  if (!Number.isInteger(appointmentId) || appointmentId <= 0) {
+    return res.status(400).json({ error: "Invalid appointment id" });
+  }
+
+  const parseResult = updateAppointmentStatusSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      issues: parseResult.error.flatten(),
+    });
+  }
+
+  const [row] = await db
+    .select({ appointment: appointments, patient: users })
+    .from(appointments)
+    .leftJoin(users, eq(users.id, appointments.patientId))
+    .where(and(eq(appointments.id, appointmentId), eq(appointments.doctorId, authUser.id)))
+    .limit(1);
+
+  if (!row) {
+    return res.status(404).json({ error: "Appointment not found" });
+  }
+
+  const [doctor] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, authUser.id))
+    .limit(1);
+
+  const [updated] = await db
+    .update(appointments)
+    .set({ status: parseResult.data.status })
+    .where(eq(appointments.id, appointmentId))
+    .returning();
+
+  if (!updated) {
+    return res.status(404).json({ error: "Appointment not found" });
+  }
+
+  if (row.patient && doctor) {
+    try {
+      await sendAppointmentStatusEmail({
+        patientName: row.patient.name,
+        patientEmail: row.patient.email,
+        doctorName: doctor.name,
+        startsAt: updated.startsAt,
+        endsAt: updated.endsAt,
+        status: parseResult.data.status,
+      });
+    } catch (error) {
+      console.error("Failed to send appointment status email", error);
+    }
+  }
+
+  return res.json({ appointment: serializeAppointment(updated) });
+}

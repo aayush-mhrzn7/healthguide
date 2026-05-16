@@ -13,6 +13,7 @@
         { "name": "role", "type": "text", "nullable": false, "default": "user" },
         { "name": "specialty", "type": "text", "nullable": true },
         { "name": "bio", "type": "text", "nullable": true },
+        { "name": "profile_image_url", "type": "text", "nullable": true },
         { "name": "date_of_birth", "type": "date", "nullable": true },
         { "name": "gender", "type": "text", "nullable": true },
         { "name": "blood_type", "type": "text", "nullable": true },
@@ -46,6 +47,7 @@
         { "name": "confidence", "type": "text", "nullable": false },
         { "name": "top_predictions", "type": "jsonb", "nullable": true },
         { "name": "reasoning", "type": "text", "nullable": true },
+        { "name": "llm_advice", "type": "jsonb", "nullable": true },
         { "name": "selected_symptoms", "type": "jsonb", "nullable": true },
         { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
       ]
@@ -97,7 +99,7 @@
         },
         { "name": "starts_at", "type": "timestamp", "nullable": false },
         { "name": "ends_at", "type": "timestamp", "nullable": false },
-        { "name": "status", "type": "text", "nullable": false, "default": "scheduled" },
+        { "name": "status", "type": "text", "nullable": false, "default": "pending" },
         { "name": "created_at", "type": "timestamp", "nullable": false, "default": "now()" }
       ]
     }

@@ -14,6 +14,7 @@ import {
   type DbUser,
 } from "../db/schema";
 import { sendDoctorWelcomeEmail } from "../lib/sendVerificationEmail";
+import { DOCTOR_SPECIALTIES } from "../constants/specialties";
 
 const passwordSchema = z
   .string()
@@ -27,11 +28,12 @@ const createDoctorSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
   password: passwordSchema,
+  phone: z.string().trim().optional().nullable(),
   clinicLocation: z.string().optional().nullable(),
   clinicLatitude: z.number().finite().optional().nullable(),
   clinicLongitude: z.number().finite().optional().nullable(),
   specialty: z
-    .enum(["general", "respiratory", "allergy", "cardiology"])
+    .enum(DOCTOR_SPECIALTIES)
     .optional()
     .default("general"),
 });
@@ -50,6 +52,7 @@ export async function createDoctor(req: Request, res: Response) {
     name,
     email,
     password,
+    phone,
     specialty,
     clinicLocation,
     clinicLatitude,
@@ -76,6 +79,7 @@ export async function createDoctor(req: Request, res: Response) {
       passwordHash,
       role: "doctor",
       specialty,
+      phone: phone && phone.trim() ? phone.trim() : null,
       address: clinicLocation && clinicLocation.trim() ? clinicLocation.trim() : null,
       latitude: clinicLatitude ?? null,
       longitude: clinicLongitude ?? null,
@@ -122,6 +126,7 @@ export async function createDoctor(req: Request, res: Response) {
       email: doctor.email,
       role: doctor.role,
       specialty: doctor.specialty,
+      phone: doctor.phone,
       clinicLocation: doctor.address,
       clinicLatitude: doctor.latitude,
       clinicLongitude: doctor.longitude,
@@ -239,4 +244,3 @@ export async function getAdminHealth(_req: Request, res: Response) {
     },
   });
 }
-

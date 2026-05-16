@@ -9,4 +9,5 @@ exports.appointmentsRouter = appointmentsRouter;
 appointmentsRouter.post("/", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.createAppointment);
 appointmentsRouter.get("/user", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.getUserAppointments);
 appointmentsRouter.get("/doctor", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["doctor"]), appointments_controller_1.getDoctorAppointments);
+appointmentsRouter.patch("/doctor/:id/status", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["doctor"]), appointments_controller_1.updateDoctorAppointmentStatus);
 appointmentsRouter.get("/booked-slots", verifyJwt_1.verifyJwt, (0, verifyJwt_1.requireRole)(["user"]), appointments_controller_1.getDoctorBookedSlots);

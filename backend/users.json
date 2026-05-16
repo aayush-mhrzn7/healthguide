@@ -5,45 +5,345 @@
     "role": "admin"
   },
   "user": {
-    "email": "aayush@gmail.com",
+    "email": "aayushmaharjan75@gmail.com",
     "password": "Admin@123",
     "role": "user"
   },
+  "patients": [],
   "doctors": [
     {
-      "name": "Dr. Sarah Mitchell",
-      "email": "sarah.mitchell@healthguide.com",
+      "name": "Dr. General Care",
+      "email": "aayushmaharjan497+general@gmail.com",
       "password": "Admin@123",
       "role": "doctor",
-      "specialty": "general"
+      "specialty": "general",
+      "phone": "+977 9841000001",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Primary care doctor for first-line review, prevention, and general health concerns."
     },
     {
-      "name": "Dr. James Patel",
-      "email": "james.patel@healthguide.com",
+      "name": "Dr. Cardiology Care",
+      "email": "aayushmaharjan497+cardiology@gmail.com",
       "password": "Admin@123",
       "role": "doctor",
-      "specialty": "cardiology"
+      "specialty": "cardiology",
+      "phone": "+977 9841000002",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Cardiology doctor for chest pain, palpitations, blood pressure, and circulation symptoms."
     },
     {
-      "name": "Dr. Emily Nguyen",
-      "email": "emily.nguyen@healthguide.com",
+      "name": "Dr. Respiratory Care",
+      "email": "aayushmaharjan497+respiratory@gmail.com",
       "password": "Admin@123",
       "role": "doctor",
-      "specialty": "respiratory"
+      "specialty": "respiratory",
+      "phone": "+977 9841000003",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Respiratory doctor for cough, asthma-like symptoms, wheezing, and breathlessness."
     },
     {
-      "name": "Dr. Omar Hassan",
-      "email": "omar.hassan@healthguide.com",
+      "name": "Dr. Allergy Care",
+      "email": "aayushmaharjan497+allergy@gmail.com",
       "password": "Admin@123",
       "role": "doctor",
-      "specialty": "allergy"
+      "specialty": "allergy",
+      "phone": "+977 9841000004",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Allergy doctor for sneezing, hives, allergic rhinitis, and trigger-related symptoms."
     },
     {
-      "name": "Dr. Priya Sharma",
-      "email": "priya.sharma@healthguide.com",
+      "name": "Dr. Dermatology Care",
+      "email": "aayushmaharjan497+dermatology@gmail.com",
       "password": "Admin@123",
       "role": "doctor",
-      "specialty": "general"
+      "specialty": "dermatology",
+      "phone": "+977 9841000005",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Dermatology doctor for rash, itching, acne, fungal infections, and skin changes."
+    },
+    {
+      "name": "Dr. Gastroenterology Care",
+      "email": "aayushmaharjan497+gastroenterology@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "gastroenterology",
+      "phone": "+977 9841000006",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Gastroenterology doctor for stomach pain, reflux, vomiting, bowel changes, and liver concerns."
+    },
+    {
+      "name": "Dr. Neurology Care",
+      "email": "aayushmaharjan497+neurology@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "neurology",
+      "phone": "+977 9841000007",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Neurology doctor for headache, migraine, dizziness, numbness, weakness, and balance issues."
+    },
+    {
+      "name": "Dr. Orthopedics Care",
+      "email": "aayushmaharjan497+orthopedics@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "orthopedics",
+      "phone": "+977 9841000008",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Orthopedics doctor for joint pain, back pain, stiffness, injuries, and movement concerns."
+    },
+    {
+      "name": "Dr. Endocrinology Care",
+      "email": "aayushmaharjan497+endocrinology@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "endocrinology",
+      "phone": "+977 9841000009",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Endocrinology doctor for diabetes, thyroid symptoms, hormone concerns, and metabolism issues."
+    },
+    {
+      "name": "Dr. Urology Care",
+      "email": "aayushmaharjan497+urology@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "urology",
+      "phone": "+977 9841000010",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Urology doctor for urinary pain, kidney-area discomfort, bladder symptoms, and recurrent UTIs."
+    },
+    {
+      "name": "Dr. Ophthalmology Care",
+      "email": "aayushmaharjan497+ophthalmology@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "ophthalmology",
+      "phone": "+977 9841000011",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Ophthalmology doctor for eye pain, blurred vision, redness, and sensitivity to light."
+    },
+    {
+      "name": "Dr. ENT Care",
+      "email": "aayushmaharjan497+ent@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "ent",
+      "phone": "+977 9841000012",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "ENT doctor for ear pain, sore throat, sinus symptoms, hearing concerns, and voice changes."
+    },
+    {
+      "name": "Dr. Infectious Disease Care",
+      "email": "aayushmaharjan497+infectious_disease@gmail.com",
+      "password": "Admin@123",
+      "role": "doctor",
+      "specialty": "infectious_disease",
+      "phone": "+977 9841000013",
+      "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+      "latitude": 27.67855202468585,
+      "longitude": 85.32965113258562,
+      "bio": "Infectious disease doctor for fever, dengue-like symptoms, typhoid, malaria, and persistent infections."
+    }
+  ],
+  "assessments": [
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 1,
+      "answers": { "itching": true, "skin_rash": true, "nodal_skin_eruptions": true },
+      "predictedDisease": "Fungal infection",
+      "recommendedSpecialty": "dermatology",
+      "confidence": "high",
+      "topPredictions": [
+        { "disease": "Fungal infection", "confidence": 0.86 },
+        { "disease": "Impetigo", "confidence": 0.08 },
+        { "disease": "Psoriasis", "confidence": 0.06 }
+      ],
+      "reasoning": "Skin rash and itching made a dermatology review the most appropriate next step.",
+      "selectedSymptoms": ["Itching", "Skin Rash", "Nodal Skin Eruptions"],
+      "llmAdvice": {
+        "overview": "A fungal infection is caused by fungi growing on the skin, nails, or other moist areas. It often causes itching, redness, scaling, or ring-shaped patches.",
+        "medications": ["Discuss antifungal creams with a doctor or pharmacist.", "Avoid steroid creams unless prescribed because they can worsen some fungal rashes.", "Seek care if the rash spreads, becomes painful, or involves the face or genitals."],
+        "selfCare": ["Keep the area clean and dry.", "Avoid sharing towels or clothing.", "Book a dermatologist if symptoms persist."],
+        "warningSigns": ["Rapidly spreading redness", "Fever with rash", "Severe pain or swelling"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    },
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 3,
+      "answers": { "cough": true, "breathlessness": true, "family_history": true },
+      "predictedDisease": "Bronchial Asthma",
+      "recommendedSpecialty": "respiratory",
+      "confidence": "medium",
+      "topPredictions": [
+        { "disease": "Bronchial Asthma", "confidence": 0.63 },
+        { "disease": "Pneumonia", "confidence": 0.22 },
+        { "disease": "Common Cold", "confidence": 0.15 }
+      ],
+      "reasoning": "Cough and breathlessness suggest a respiratory assessment, especially if symptoms recur or worsen.",
+      "selectedSymptoms": ["Cough", "Breathlessness", "Family History"],
+      "llmAdvice": {
+        "overview": "Bronchial asthma is a long-term airway condition where the breathing tubes become inflamed and narrow. It can cause wheezing, cough, chest tightness, and shortness of breath.",
+        "medications": ["Discuss reliever inhalers and controller inhalers with a clinician.", "Do not start or change inhaler use without medical guidance.", "Ask about trigger control and an asthma action plan."],
+        "selfCare": ["Avoid smoke, dust, and known triggers.", "Track breathing symptoms and night-time cough.", "Book respiratory care for spirometry or review."],
+        "warningSigns": ["Severe breathlessness", "Blue lips", "Difficulty speaking in full sentences"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    },
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 5,
+      "answers": { "headache": true, "nausea": true, "blurred_and_distorted_vision": true },
+      "predictedDisease": "Migraine",
+      "recommendedSpecialty": "neurology",
+      "confidence": "medium",
+      "topPredictions": [
+        { "disease": "Migraine", "confidence": 0.58 },
+        { "disease": "Hypertension", "confidence": 0.19 },
+        { "disease": "Vertigo", "confidence": 0.11 }
+      ],
+      "reasoning": "Headache with nausea and visual symptoms is commonly reviewed by neurology when recurrent or disruptive.",
+      "selectedSymptoms": ["Headache", "Nausea", "Blurred And Distorted Vision"],
+      "llmAdvice": {
+        "overview": "Migraine is a neurological headache disorder that can cause throbbing pain, nausea, light sensitivity, and visual symptoms. It may recur in attacks and can be triggered by sleep, stress, foods, or hormones.",
+        "medications": ["Discuss migraine-specific treatment options with a doctor.", "Some people use over-the-counter pain relievers if safe for them.", "Avoid frequent painkiller use without guidance because it can worsen headaches."],
+        "selfCare": ["Rest in a quiet, dark room during attacks.", "Track triggers and headache timing.", "Hydrate and keep regular sleep routines."],
+        "warningSigns": ["Sudden worst headache", "Weakness or confusion", "Headache after injury"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    },
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 8,
+      "answers": { "stomach_pain": true, "acidity": true, "vomiting": true },
+      "predictedDisease": "Gastroesophageal reflux disease",
+      "recommendedSpecialty": "gastroenterology",
+      "confidence": "low",
+      "topPredictions": [
+        { "disease": "Gastroesophageal reflux disease", "confidence": 0.41 },
+        { "disease": "Peptic ulcer disease", "confidence": 0.28 },
+        { "disease": "Gastroenteritis", "confidence": 0.16 }
+      ],
+      "reasoning": "Digestive symptoms overlap across several conditions, so gastroenterology follow-up is sensible.",
+      "selectedSymptoms": ["Stomach Pain", "Acidity", "Vomiting"],
+      "llmAdvice": {
+        "overview": "GERD happens when stomach acid flows back into the food pipe, causing burning, sour taste, cough, or discomfort after meals. Similar symptoms can come from ulcers or infections, so review matters.",
+        "medications": ["Discuss antacids or acid-reducing medicine with a clinician or pharmacist.", "Avoid long-term acid medicine without medical review.", "Seek advice before medicines if pregnant or taking other prescriptions."],
+        "selfCare": ["Eat smaller meals.", "Avoid lying down right after eating.", "Limit trigger foods if they clearly worsen symptoms."],
+        "warningSigns": ["Vomiting blood", "Black stools", "Unexplained weight loss", "Severe persistent pain"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    },
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 10,
+      "answers": { "burning_micturition": true, "bladder_discomfort": true, "foul_smell_of_urine": true },
+      "predictedDisease": "Urinary tract infection",
+      "recommendedSpecialty": "urology",
+      "confidence": "high",
+      "topPredictions": [
+        { "disease": "Urinary tract infection", "confidence": 0.81 },
+        { "disease": "Kidney stone", "confidence": 0.12 },
+        { "disease": "Dehydration", "confidence": 0.07 }
+      ],
+      "reasoning": "Burning urination and bladder discomfort point toward a urology review.",
+      "selectedSymptoms": ["Burning Micturition", "Bladder Discomfort", "Foul Smell Of Urine"],
+      "llmAdvice": {
+        "overview": "A urinary tract infection happens when bacteria irritate part of the urinary system. It can cause burning urination, frequent urination, lower belly discomfort, or strong-smelling urine.",
+        "medications": ["Discuss urine testing and antibiotics with a clinician.", "Avoid taking leftover antibiotics.", "Ask promptly if symptoms recur or worsen."],
+        "selfCare": ["Drink fluids if safe for you.", "Do not delay care if pain increases.", "Track fever, flank pain, and urine changes."],
+        "warningSigns": ["Fever with back pain", "Blood in urine", "Vomiting or worsening weakness"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    },
+    {
+      "userEmail": "aayushmaharjan75@gmail.com",
+      "daysAgo": 12,
+      "answers": { "chest_pain": true, "palpitations": true, "breathlessness": true },
+      "predictedDisease": "Hypertension",
+      "recommendedSpecialty": "cardiology",
+      "confidence": "medium",
+      "topPredictions": [
+        { "disease": "Hypertension", "confidence": 0.56 },
+        { "disease": "Heart rhythm concern", "confidence": 0.25 },
+        { "disease": "Anxiety-related symptoms", "confidence": 0.19 }
+      ],
+      "reasoning": "Chest discomfort with palpitations should be reviewed carefully by cardiology.",
+      "selectedSymptoms": ["Chest Pain", "Palpitations", "Breathlessness"],
+      "llmAdvice": {
+        "overview": "Hypertension means blood pressure is running higher than expected. It may not cause symptoms, but chest pain or palpitations should be taken seriously.",
+        "medications": ["Discuss blood pressure measurement and treatment options with a clinician.", "Do not start heart medicines without medical review.", "Bring any home blood pressure readings to your appointment."],
+        "selfCare": ["Rest if symptoms appear.", "Avoid heavy exertion until reviewed.", "Track pulse, blood pressure, and symptom timing."],
+        "warningSigns": ["Severe chest pain", "Fainting", "Shortness of breath at rest"],
+        "disclaimer": "This is just a recommendation. Consult a doctor for more depth and a confirmed diagnosis.",
+        "source": "fallback"
+      }
+    }
+  ],
+  "appointments": [
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+dermatology@gmail.com",
+      "startsInHours": 24,
+      "status": "pending"
+    },
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+respiratory@gmail.com",
+      "startsInHours": 48,
+      "status": "accepted"
+    },
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+neurology@gmail.com",
+      "startsInHours": 72,
+      "status": "pending"
+    },
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+gastroenterology@gmail.com",
+      "startsInHours": -72,
+      "status": "accepted"
+    },
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+cardiology@gmail.com",
+      "startsInHours": -24,
+      "status": "denied"
+    },
+    {
+      "patientEmail": "aayushmaharjan75@gmail.com",
+      "doctorEmail": "aayushmaharjan497+urology@gmail.com",
+      "startsInHours": 96,
+      "status": "pending"
     }
   ]
 }

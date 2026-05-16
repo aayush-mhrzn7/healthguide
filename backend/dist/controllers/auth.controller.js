@@ -61,6 +61,7 @@ const updateProfileSchema = zod_1.z.object({
     longitude: zod_1.z.number().finite().optional().nullable(),
     specialty: zod_1.z.string().optional().nullable(),
     bio: zod_1.z.string().optional().nullable(),
+    profileImageUrl: zod_1.z.string().url().optional().nullable(),
     preferredCommunication: zod_1.z.string().optional().nullable(),
     primaryCarePreference: zod_1.z.string().optional().nullable(),
 });
@@ -116,6 +117,7 @@ function publicUserFields(user) {
         longitude: user.longitude,
         preferredCommunication: user.preferredCommunication,
         primaryCarePreference: user.primaryCarePreference,
+        profileImageUrl: user.profileImageUrl,
     };
 }
 async function signup(req, res) {
@@ -492,7 +494,7 @@ async function updateMe(req, res) {
             issues: parseResult.error.flatten(),
         });
     }
-    const { dateOfBirth, gender, bloodType, phone, address, latitude, longitude, specialty, bio, preferredCommunication, primaryCarePreference, } = parseResult.data;
+    const { dateOfBirth, gender, bloodType, phone, address, latitude, longitude, specialty, bio, profileImageUrl, preferredCommunication, primaryCarePreference, } = parseResult.data;
     const updateValues = {};
     if (typeof specialty !== "undefined") {
         updateValues.specialty =
@@ -501,6 +503,12 @@ async function updateMe(req, res) {
     if (typeof bio !== "undefined") {
         updateValues.bio =
             bio && bio.trim().length > 0 ? bio.trim() : null;
+    }
+    if (typeof profileImageUrl !== "undefined") {
+        updateValues.profileImageUrl =
+            profileImageUrl && profileImageUrl.trim().length > 0
+                ? profileImageUrl.trim()
+                : null;
     }
     if (typeof preferredCommunication !== "undefined") {
         updateValues.preferredCommunication =

@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
   specialty: text("specialty"), // For doctors: e.g. "general", "cardiology", "respiratory"
   bio: text("bio"), // For doctors: short bio/about
+  profileImageUrl: text("profile_image_url"),
 
   dateOfBirth: date("date_of_birth", { mode: "date" }),
   gender: text("gender"),
@@ -62,6 +63,7 @@ export const assessments = pgTable("assessments", {
   confidence: text("confidence").notNull(), // "high" | "medium" | "low"
   topPredictions: jsonb("top_predictions"),
   reasoning: text("reasoning"),
+  llmAdvice: jsonb("llm_advice"),
   selectedSymptoms: jsonb("selected_symptoms"),
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
@@ -78,7 +80,7 @@ export const appointments = pgTable("appointments", {
     .references(() => users.id, { onDelete: "cascade" }),
   startsAt: timestamp("starts_at", { mode: "date" }).notNull(),
   endsAt: timestamp("ends_at", { mode: "date" }).notNull(),
-  status: text("status").notNull().default("scheduled"),
+  status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
     .notNull(),
@@ -91,4 +93,3 @@ export type DbAppointment = typeof appointments.$inferSelect;
 export type NewDbAppointment = typeof appointments.$inferInsert;
 export type DbAssessment = typeof assessments.$inferSelect;
 export type NewDbAssessment = typeof assessments.$inferInsert;
-

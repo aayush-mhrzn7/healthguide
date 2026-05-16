@@ -5,6 +5,7 @@ import {
   getDoctorAppointments,
   getUserAppointments,
   getDoctorBookedSlots,
+  updateDoctorAppointmentStatus,
 } from "../controllers/appointments.controller";
 import { verifyJwt, requireRole } from "../middleware/verifyJwt";
 
@@ -31,6 +32,13 @@ appointmentsRouter.get(
   getDoctorAppointments
 );
 
+appointmentsRouter.patch(
+  "/doctor/:id/status",
+  verifyJwt,
+  requireRole(["doctor"]),
+  updateDoctorAppointmentStatus
+);
+
 appointmentsRouter.get(
   "/booked-slots",
   verifyJwt,
@@ -39,4 +47,3 @@ appointmentsRouter.get(
 );
 
 export { appointmentsRouter };
-
