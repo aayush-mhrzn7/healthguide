@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 
 import {
   MapPin,
+  Mail,
+  Phone,
+  Stethoscope,
 } from "lucide-react";
 
 import {
@@ -20,12 +23,17 @@ import { api } from "@/lib/apiClient";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
+import { formatSpecialty } from "@/lib/specialties";
 
 type Appointment = {
   id: number;
   doctorId: number;
   doctorName: string;
   doctorEmail?: string;
+  doctorPhone?: string | null;
+  doctorSpecialty?: string | null;
+  doctorClinicLocation?: string | null;
+  doctorProfileImageUrl?: string | null;
   startsAt: string;
   endsAt: string;
   status: string;
@@ -58,10 +66,10 @@ export default function AppointmentsPage() {
 
   const now = new Date();
   const upcoming = appointments.filter(
-    (a) => new Date(a.startsAt) >= now && a.status === "scheduled"
+    (a) => new Date(a.startsAt) >= now && ["pending", "accepted", "scheduled"].includes(a.status)
   );
   const past = appointments.filter(
-    (a) => new Date(a.startsAt) < now || a.status !== "scheduled"
+    (a) => new Date(a.startsAt) < now || !["pending", "accepted", "scheduled"].includes(a.status)
   );
 
   const handleLogout = async () => {
@@ -150,18 +158,49 @@ export default function AppointmentsPage() {
                         key={appt.id}
                         className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-3"
                       >
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-foreground">
-                            {appt.doctorName}
-                          </p>
+                        <div className="flex min-w-0 gap-3">
+                          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
+                            {appt.doctorProfileImageUrl ? (
+                              <img
+                                src={appt.doctorProfileImageUrl}
+                                alt={appt.doctorName}
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              appt.doctorName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-foreground">
+                              {appt.doctorName}
+                            </p>
                           <p className="text-[11px] text-muted-foreground">
                             {format(new Date(appt.startsAt), "MMM d, yyyy")} ·{" "}
                             {format(new Date(appt.startsAt), "h:mm a")}
                           </p>
                           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <MapPin className="h-3 w-3" />
-                            HealthGuide Virtual
+                            <Stethoscope className="h-3 w-3" />
+                            {formatSpecialty(appt.doctorSpecialty)}
                           </p>
+                          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {appt.doctorClinicLocation ?? "HealthGuide Virtual"}
+                          </p>
+                          <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                            {appt.doctorEmail && (
+                              <span className="inline-flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {appt.doctorEmail}
+                              </span>
+                            )}
+                            {appt.doctorPhone && (
+                              <span className="inline-flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {appt.doctorPhone}
+                              </span>
+                            )}
+                          </div>
+                          </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">

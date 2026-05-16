@@ -1,6 +1,6 @@
 "use client";
 
-import { Stethoscope } from "lucide-react";
+import { Mail, MapPin, Phone, Stethoscope } from "lucide-react";
 
 import {
   Card,
@@ -10,12 +10,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatSpecialty } from "@/lib/specialties";
 
 export type Doctor = {
   id: number;
   name: string;
   email: string;
+  phone: string | null;
   specialty: string;
+  bio: string | null;
+  profileImageUrl: string | null;
   clinicLocation: string | null;
   clinicLatitude: number | null;
   clinicLongitude: number | null;
@@ -101,12 +105,43 @@ export function DoctorSelector({
                 : "border-border/60 bg-background/60 hover:bg-muted/50"
             }`}
           >
-            <span className="text-sm font-semibold text-foreground">
-              {doctor.name}
-            </span>
-            <span className="text-xs text-primary">{doctor.specialty}</span>
+            <div className="flex w-full gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold">
+                {doctor.profileImageUrl ? (
+                  <img
+                    src={doctor.profileImageUrl}
+                    alt={doctor.name}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  doctor.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <span className="block text-sm font-semibold text-foreground">
+                  {doctor.name}
+                </span>
+                <span className="block text-xs text-primary">
+                  {formatSpecialty(doctor.specialty)}
+                </span>
+                {doctor.bio && (
+                  <span className="line-clamp-2 block text-[11px] text-muted-foreground">
+                    {doctor.bio}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Mail className="h-3 w-3" />
+                  {doctor.email}
+                </span>
+                {doctor.phone && (
+                  <span className="ml-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Phone className="h-3 w-3" />
+                    {doctor.phone}
+                  </span>
+                )}
             {doctor.clinicLocation && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <MapPin className="h-3 w-3" />
                 Doctor&apos;s clinic location: {doctor.clinicLocation}
               </span>
             )}
@@ -115,6 +150,8 @@ export function DoctorSelector({
                 ~{doctor.distanceKm.toFixed(2)} km away
               </span>
             )}
+              </div>
+            </div>
           </button>
         ))}
       </CardContent>

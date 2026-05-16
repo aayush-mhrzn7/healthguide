@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { LocationPicker } from "@/components/location/LocationPicker";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { DOCTOR_SPECIALTIES } from "@/lib/specialties";
 import {
   Dialog,
   DialogContent,
@@ -154,6 +155,7 @@ function AdminDashboardInner() {
   const isLoadingStats = statsQuery.isLoading || healthQuery.isLoading;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [clinicLocation, setClinicLocation] = useState("");
   const [clinicLatitude, setClinicLatitude] = useState<number | null>(null);
@@ -186,6 +188,7 @@ function AdminDashboardInner() {
     mutationFn: async (payload: {
       name: string;
       email: string;
+      phone: string | null;
       password: string;
       clinicLocation: string | null;
       clinicLatitude: number | null;
@@ -199,6 +202,7 @@ function AdminDashboardInner() {
       ]);
       setName("");
       setEmail("");
+      setPhone("");
       setPassword("");
       setClinicLocation("");
       setClinicLatitude(null);
@@ -218,6 +222,7 @@ function AdminDashboardInner() {
       await createDoctorMutation.mutateAsync({
         name: name.trim(),
         email: email.trim(),
+        phone: phone.trim() || null,
         password: password.trim(),
         clinicLocation: clinicLocation.trim() || null,
         clinicLatitude,
@@ -316,6 +321,22 @@ function AdminDashboardInner() {
                   </div>
                   <div className="grid gap-1">
                     <label
+                      htmlFor="doctor-phone"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Phone number
+                    </label>
+                    <input
+                      id="doctor-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+977 9800000000"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label
                       htmlFor="doctor-password"
                       className="text-[11px] font-medium text-muted-foreground"
                     >
@@ -409,10 +430,11 @@ function AdminDashboardInner() {
                       onChange={(e) => setSpecialty(e.target.value)}
                       className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                      <option value="general">General</option>
-                      <option value="respiratory">Respiratory</option>
-                      <option value="allergy">Allergy</option>
-                      <option value="cardiology">Cardiology</option>
+                      {DOCTOR_SPECIALTIES.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   {error && <p className="text-[11px] text-destructive">{error}</p>}

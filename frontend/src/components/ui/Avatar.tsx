@@ -13,7 +13,8 @@ export type AvatarProps = {
   size?: "sm" | "md" | "lg";
   className?: string;
   editable?: boolean;
-  onImageChange?: (dataUrl: string) => void;
+  isUploading?: boolean;
+  onImageChange?: (file: File) => void | Promise<void>;
 };
 
 const sizeClasses = {
@@ -28,35 +29,16 @@ export function Avatar({
   size = "md",
   className,
   editable = false,
+  isUploading = false,
   onImageChange,
 }: AvatarProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [localSrc, setLocalSrc] = React.useState<string | null>(
-    () => (typeof window !== "undefined" ? localStorage.getItem(AVATAR_STORAGE_KEY) : null) ?? src ?? null
-  );
 
-  React.useEffect(() => {
-    if (src && !localSrc) {
-      setLocalSrc(src);
-    }
-  }, [src]);
-
-  const displaySrc = localSrc ?? src;
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setLocalSrc(dataUrl);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
-      }
-      onImageChange?.(dataUrl);
-    };
-    reader.readAsDataURL(file);
+    await onImageChange?.(file);
     e.target.value = "";
   };
 
@@ -94,10 +76,11 @@ export function Avatar({
         accept="image/*"
         className="sr-only"
         onChange={handleFileChange}
+        disabled={isUploading}
       />
-      {displaySrc ? (
+      {src ? (
         <img
-          src={displaySrc}
+          src={src}
           alt={alt}
           className="size-full object-cover"
         />
@@ -110,6 +93,11 @@ export function Avatar({
               {alt.charAt(0).toUpperCase()}
             </span>
           )}
+        </div>
+      )}
+      {isUploading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-[10px] font-medium text-foreground">
+          Uploading
         </div>
       )}
     </div>

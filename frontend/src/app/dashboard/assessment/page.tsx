@@ -133,6 +133,14 @@ type AssessmentResult = {
   confidence: string;
   topPredictions: Array<{ disease: string; confidence: number }>;
   reasoning: string;
+  llmAdvice: {
+    overview: string;
+    medications: string[];
+    selfCare: string[];
+    warningSigns: string[];
+    disclaimer: string;
+    source?: string;
+  } | null;
   selectedSymptoms: string[];
   createdAt: string;
 };
@@ -445,17 +453,16 @@ export default function AssessmentPage() {
               </p>
             </header>
             <section className="flex flex-1 flex-col gap-6 px-6 pb-8 lg:px-8">
-              <div className="max-w-xl">
-                <AssessmentResultCard
-                  predictedDisease={result.predictedDisease}
-                  recommendedSpecialty={result.recommendedSpecialty}
-                  confidence={result.confidence}
-                  topPredictions={result.topPredictions ?? []}
-                  reasoning={result.reasoning}
-                  selectedSymptoms={result.selectedSymptoms}
-                  onBookDoctor={handleBookDoctor}
-                />
-              </div>
+              <AssessmentResultCard
+                predictedDisease={result.predictedDisease}
+                recommendedSpecialty={result.recommendedSpecialty}
+                confidence={result.confidence}
+                topPredictions={result.topPredictions ?? []}
+                reasoning={result.reasoning}
+                llmAdvice={result.llmAdvice}
+                selectedSymptoms={result.selectedSymptoms}
+                onBookDoctor={handleBookDoctor}
+              />
               <Button
                 variant="ghost"
                 size="sm"

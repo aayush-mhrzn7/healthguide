@@ -23,9 +23,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Avatar, getStoredAvatar } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/Avatar";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { api } from "@/lib/apiClient";
+import { uploadProfileImage } from "@/lib/cloudinary";
+import { DOCTOR_SPECIALTIES, formatSpecialty } from "@/lib/specialties";
 import { LocationPicker } from "@/components/location/LocationPicker";
 
 type ProfileUser = {
@@ -38,6 +40,7 @@ type ProfileUser = {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  profileImageUrl: string | null;
 };
 
 export default function DoctorProfilePage() {
@@ -52,6 +55,7 @@ export default function DoctorProfilePage() {
   const [formAddress, setFormAddress] = useState("");
   const [formLatitude, setFormLatitude] = useState<number | null>(null);
   const [formLongitude, setFormLongitude] = useState<number | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -107,6 +111,28 @@ export default function DoctorProfilePage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      setIsUploadingAvatar(true);
+      const profileImageUrl = await uploadProfileImage(file);
+      const res = await api.patch<{ user: ProfileUser }>("/auth/me", {
+        profileImageUrl,
+      });
+      setUser(res.data.user);
+      toast.success("Profile image updated");
+    } catch (error) {
+      console.error("Profile image upload failed", error);
+      toast.error("Image upload failed", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Check your Cloudinary cloud name and unsigned upload preset.",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -173,10 +199,11 @@ export default function DoctorProfilePage() {
                       className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                     >
                       <option value="">Select specialty</option>
-                      <option value="general">General</option>
-                      <option value="respiratory">Respiratory</option>
-                      <option value="allergy">Allergy</option>
-                      <option value="cardiology">Cardiology</option>
+                      {DOCTOR_SPECIALTIES.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="grid gap-1 text-xs">
@@ -240,10 +267,12 @@ export default function DoctorProfilePage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-6 sm:flex-row sm:items-start">
                 <Avatar
-                  src={getStoredAvatar()}
+                  src={user?.profileImageUrl}
                   alt={user?.name ?? "Doctor"}
                   size="lg"
                   editable
+                  isUploading={isUploadingAvatar}
+                  onImageChange={handleAvatarUpload}
                 />
                 <div className="grid flex-1 gap-4 text-xs sm:grid-cols-2">
                   <div className="space-y-1">
@@ -256,7 +285,7 @@ export default function DoctorProfilePage() {
                     <p className="text-[11px] text-muted-foreground">Specialty</p>
                     <p className="flex items-center gap-1 text-sm font-semibold">
                       <Stethoscope className="h-3.5 w-3.5" />
-                      {isLoading ? "Loading…" : display(user?.specialty)}
+                      {isLoading ? "Loading…" : formatSpecialty(user?.specialty)}
                     </p>
                   </div>
                   <div className="space-y-1 sm:col-span-2">

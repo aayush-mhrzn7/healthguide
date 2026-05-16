@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings2 } from "lucide-react";
+import { Check, Loader2, Mail, Phone, Settings2, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   Area,
   AreaChart,
@@ -34,6 +35,9 @@ type DoctorAppointment = {
   endsAt: string;
   status: string;
   patientName: string;
+  patientEmail: string | null;
+  patientPhone: string | null;
+  patientProfileImageUrl: string | null;
 };
 
 type CalendarEvent = Event & {
@@ -59,6 +63,7 @@ function DoctorDashboardInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
+  const [updatingAppointmentId, setUpdatingAppointmentId] = useState<number | null>(null);
 
   const onView = useCallback((newView: View) => {
     setView(newView);
@@ -84,32 +89,42 @@ function DoctorDashboardInner() {
     router.push("/login");
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadAppointments = async () => {
-      try {
-        const response = await api.get<{ appointments: DoctorAppointment[] }>(
-          "/appointments/doctor",
-        );
-        if (!isMounted) return;
-        setAppointments(response.data.appointments);
-      } catch {
-        if (!isMounted) return;
-        setAppointments([]);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadAppointments();
-
-    return () => {
-      isMounted = false;
-    };
+  const loadAppointments = useCallback(async () => {
+    try {
+      const response = await api.get<{ appointments: DoctorAppointment[] }>(
+        "/appointments/doctor",
+      );
+      setAppointments(response.data.appointments);
+    } catch {
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  const updateAppointmentStatus = async (
+    appointmentId: number,
+    status: "accepted" | "denied",
+  ) => {
+    try {
+      setUpdatingAppointmentId(appointmentId);
+      await api.patch(`/appointments/doctor/${appointmentId}/status`, { status });
+      await loadAppointments();
+      toast.success(status === "accepted" ? "Appointment accepted" : "Appointment denied", {
+        description: "The patient has been notified by email.",
+      });
+    } catch {
+      toast.error("Could not update appointment", {
+        description: "Please try again in a moment.",
+      });
+    } finally {
+      setUpdatingAppointmentId(null);
+    }
+  };
 
   const events: CalendarEvent[] = useMemo(
     () =>
@@ -124,7 +139,7 @@ function DoctorDashboardInner() {
   );
 
   const upcomingCount = appointments.filter(
-    (appt) => new Date(appt.startsAt) >= new Date(),
+    (appt) => new Date(appt.startsAt) >= new Date() && appt.status !== "denied",
   ).length;
 
   const todayCount = appointments.filter((appt) => {
@@ -226,6 +241,87 @@ function DoctorDashboardInner() {
             <Card className="border-border/80 bg-card/90 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold">
+                  Appointment requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                {isLoading ? (
+                  <div className="py-4 text-center text-muted-foreground">
+                    Loading requests...
+                  </div>
+                ) : appointments.length === 0 ? (
+                  <div className="py-4 text-center text-muted-foreground">
+                    No appointment requests yet.
+                  </div>
+                ) : (
+                  appointments.map((appt) => (
+                    <div
+                      key={appt.id}
+                      className="flex flex-col justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-4 py-3 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-foreground">
+                            {appt.patientName}
+                          </p>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {appt.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {format(new Date(appt.startsAt), "MMM d, yyyy")} at{" "}
+                          {format(new Date(appt.startsAt), "h:mm a")}
+                        </p>
+                        <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                          {appt.patientEmail && (
+                            <span className="inline-flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {appt.patientEmail}
+                            </span>
+                          )}
+                          {appt.patientPhone && (
+                            <span className="inline-flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {appt.patientPhone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {appt.status === "pending" && (
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1 rounded-lg px-3 text-xs"
+                            disabled={updatingAppointmentId === appt.id}
+                            onClick={() => updateAppointmentStatus(appt.id, "accepted")}
+                          >
+                            {updatingAppointmentId === appt.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 rounded-lg px-3 text-xs"
+                            disabled={updatingAppointmentId === appt.id}
+                            onClick={() => updateAppointmentStatus(appt.id, "denied")}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Deny
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+            <Card className="border-border/80 bg-card/90 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">
                   Calendar
                 </CardTitle>
               </CardHeader>
@@ -317,4 +413,3 @@ function DoctorLineChart({
     </Card>
   );
 }
-

@@ -14,6 +14,7 @@ import {
 } from "@/components/booking/TimeSlotPicker";
 import { Button } from "@/components/ui/button";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
+import { formatSpecialty } from "@/lib/specialties";
 
 export default function BookingPage() {
   return (
@@ -155,7 +156,7 @@ function BookingPageContent() {
           </h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Select a doctor and time slot. Recommended specialty:{" "}
-            <span className="font-medium text-foreground">{specialty}</span>
+            <span className="font-medium text-foreground">{formatSpecialty(specialty)}</span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {hasUserLocation

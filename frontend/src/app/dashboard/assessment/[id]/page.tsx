@@ -19,6 +19,14 @@ type AssessmentReport = {
   confidence: string;
   topPredictions: Array<{ disease: string; confidence: number }>;
   reasoning: string;
+  llmAdvice: {
+    overview: string;
+    medications: string[];
+    selfCare: string[];
+    warningSigns: string[];
+    disclaimer: string;
+    source?: string;
+  } | null;
   selectedSymptoms: string[];
   createdAt: string;
 };
@@ -89,7 +97,7 @@ export default function AssessmentReportPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="max-w-xl space-y-3">
+            <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
                 Report created on {new Date(report.createdAt).toLocaleString()}
               </p>
@@ -99,6 +107,7 @@ export default function AssessmentReportPage() {
                 confidence={report.confidence}
                 topPredictions={report.topPredictions ?? []}
                 reasoning={report.reasoning}
+                llmAdvice={report.llmAdvice}
                 selectedSymptoms={report.selectedSymptoms}
                 onBookDoctor={() => {
                   router.push(

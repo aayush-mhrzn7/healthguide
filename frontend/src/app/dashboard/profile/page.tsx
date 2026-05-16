@@ -26,8 +26,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, getStoredAvatar } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/Avatar";
 import { api } from "@/lib/apiClient";
+import { uploadProfileImage } from "@/lib/cloudinary";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import {
   Dialog,
@@ -51,6 +52,7 @@ type ProfileUser = {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  profileImageUrl: string | null;
 };
 
 export default function ProfilePage() {
@@ -74,6 +76,7 @@ export default function ProfilePage() {
   const [formAddress, setFormAddress] = useState("");
   const [formLatitude, setFormLatitude] = useState<number | null>(null);
   const [formLongitude, setFormLongitude] = useState<number | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const router = useRouter();
 
   const saveProfileMutation = useMutation({
@@ -85,6 +88,7 @@ export default function ProfilePage() {
       address: string | null;
       latitude: number | null;
       longitude: number | null;
+      profileImageUrl?: string | null;
     }) => {
       const response = await api.patch<{ user: ProfileUser }>("/auth/me", payload);
       return response.data.user;
@@ -138,6 +142,34 @@ export default function ProfilePage() {
       await saveProfileMutation.mutateAsync(payload);
     } catch (error) {
       console.error("Failed to save profile", error);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      setIsUploadingAvatar(true);
+      const profileImageUrl = await uploadProfileImage(file);
+      await saveProfileMutation.mutateAsync({ profileImageUrl } as {
+        dateOfBirth: string | null;
+        gender: string | null;
+        bloodType: string | null;
+        phone: string | null;
+        address: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        profileImageUrl: string | null;
+      });
+      toast.success("Profile image updated");
+    } catch (error) {
+      console.error("Profile image upload failed", error);
+      toast.error("Image upload failed", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Check your Cloudinary cloud name and unsigned upload preset.",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -314,10 +346,12 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-6 sm:flex-row sm:items-start">
                 <Avatar
-                  src={getStoredAvatar()}
+                  src={user?.profileImageUrl}
                   alt={user?.name ?? "User"}
                   size="lg"
                   editable
+                  isUploading={isUploadingAvatar}
+                  onImageChange={handleAvatarUpload}
                 />
                 <div className="grid flex-1 gap-4 text-xs sm:grid-cols-2">
                 <div className="space-y-1">
