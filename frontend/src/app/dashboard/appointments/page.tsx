@@ -19,11 +19,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/apiClient";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoleSidebar } from "@/components/layout/RoleSidebar";
 import { formatSpecialty } from "@/lib/specialties";
+import { LocationMap } from "@/components/location/LocationMap";
 
 type Appointment = {
   id: number;
@@ -33,7 +41,11 @@ type Appointment = {
   doctorPhone?: string | null;
   doctorSpecialty?: string | null;
   doctorClinicLocation?: string | null;
+  doctorLatitude?: number | null;
+  doctorLongitude?: number | null;
   doctorProfileImageUrl?: string | null;
+  doctorBio?: string | null;
+  summary?: string | null;
   startsAt: string;
   endsAt: string;
   status: string;
@@ -43,6 +55,8 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [summaryAppointment, setSummaryAppointment] =
+    useState<Appointment | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -265,6 +279,7 @@ export default function AppointmentsPage() {
                               variant="ghost"
                               size="sm"
                               className="inline-flex items-center gap-1 px-2 text-[11px] font-semibold text-primary"
+                              onClick={() => setSummaryAppointment(appt)}
                             >
                               View summary
                             </Button>
@@ -279,6 +294,76 @@ export default function AppointmentsPage() {
             </Card>
           </div>
         </section>
+
+        <Dialog
+          open={summaryAppointment !== null}
+          onOpenChange={(open) => {
+            if (!open) setSummaryAppointment(null);
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            {summaryAppointment && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-base">
+                    Visit summary
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    {summaryAppointment.doctorName} ·{" "}
+                    {format(
+                      new Date(summaryAppointment.startsAt),
+                      "MMM d, yyyy",
+                    )}{" "}
+                    at{" "}
+                    {format(new Date(summaryAppointment.startsAt), "h:mm a")}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-xs">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      About your doctor
+                    </p>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                      <p className="font-semibold text-foreground">
+                        {summaryAppointment.doctorName}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {formatSpecialty(summaryAppointment.doctorSpecialty)}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {summaryAppointment.doctorClinicLocation ??
+                          "HealthGuide Virtual"}
+                      </p>
+                      <LocationMap
+                        key={summaryAppointment.id}
+                        latitude={summaryAppointment.doctorLatitude}
+                        longitude={summaryAppointment.doctorLongitude}
+                        address={summaryAppointment.doctorClinicLocation}
+                        className="mt-2"
+                      />
+                      <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/90">
+                        {summaryAppointment.doctorBio?.trim() ||
+                          "No description available for this doctor."}
+                      </p>
+                    </div>
+                  </div>
+                  {/* <div className="space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Appointment summary
+                    </p>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                      <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/90">
+                        {summaryAppointment.summary?.trim() ||
+                          "No summary was recorded for this visit."}
+                      </p>
+                    </div>
+                  </div> */}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
