@@ -68,13 +68,14 @@ async function seed() {
         passwordHash: await bcryptjs_1.default.hash(users_json_1.default.user.password, 10),
         role: "user",
         emailVerified: true,
-        phone: "+977 9800000000",
-        address: "Kathmandu, Nepal",
-        latitude: 27.7172,
-        longitude: 85.324,
+        phone: users_json_1.default.user.phone ?? "+977 9800000000",
+        address: users_json_1.default.user.address ?? "Kathmandu, Nepal",
+        latitude: users_json_1.default.user.latitude ?? 27.7172,
+        longitude: users_json_1.default.user.longitude ?? 85.324,
     }).returning();
     const userByEmail = new Map([[users_json_1.default.user.email, primaryUser.id]]);
-    for (const patient of users_json_1.default.patients ?? []) {
+    const patients = (users_json_1.default.patients ?? []);
+    for (const patient of patients) {
         console.log(`👤  Seeding patient: ${patient.email}`);
         const [created] = await client_1.db.insert(schema_1.users).values({
             name: patient.name,

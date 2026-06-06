@@ -29,6 +29,7 @@ function BookingPageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const specialty = searchParams.get("specialty") ?? "general";
+  const initialDoctorId = Number(searchParams.get("doctorId") ?? "");
   const [maxDistanceKm, setMaxDistanceKm] = useState<number>(10);
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
@@ -59,7 +60,12 @@ function BookingPageContent() {
     gcTime: 2 * 60 * 60 * 1000,
   });
 
-  const effectiveSelectedDoctorId = selectedDoctorId ?? doctorsQuery.data?.[0]?.id ?? null;
+  const doctorFromUrl =
+    Number.isInteger(initialDoctorId) && initialDoctorId > 0
+      ? initialDoctorId
+      : null;
+  const effectiveSelectedDoctorId =
+    selectedDoctorId ?? doctorFromUrl ?? doctorsQuery.data?.[0]?.id ?? null;
 
   const bookedSlotsQuery = useQuery({
     queryKey: ["appointments", "booked-slots", effectiveSelectedDoctorId],

@@ -7,7 +7,11 @@
   "user": {
     "email": "aayushmaharjan75@gmail.com",
     "password": "Admin@123",
-    "role": "user"
+    "role": "user",
+    "phone": "+977 9800000000",
+    "address": "Sankhamul Bagmati Marga, Tahan Nani, Lalitpur-09, Lalitpur, Lalitpur Metropolitan City, Lalitpur, Bagamati Province, 00779, Nepal",
+    "latitude": 27.67855202468585,
+    "longitude": 85.32965113258562
   },
   "patients": [],
   "doctors": [

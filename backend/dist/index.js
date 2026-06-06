@@ -14,6 +14,7 @@ const admin_1 = require("./routes/admin");
 const appointments_1 = require("./routes/appointments");
 const assessments_1 = require("./routes/assessments");
 const doctors_1 = require("./routes/doctors");
+const uploads_1 = require("./routes/uploads");
 const client_1 = require("./db/client");
 const schema_1 = require("./db/schema");
 const app = (0, express_1.default)();
@@ -28,6 +29,7 @@ app.use("/api/admin", admin_1.adminRouter);
 app.use("/api/appointments", appointments_1.appointmentsRouter);
 app.use("/api/assessments", assessments_1.assessmentsRouter);
 app.use("/api/doctors", doctors_1.doctorsRouter);
+app.use("/api/uploads", uploads_1.uploadsRouter);
 async function ensureAdminUser() {
     const adminEmail = "admin@gmail.com";
     const adminPassword = "Admin@123";

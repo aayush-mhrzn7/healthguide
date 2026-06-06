@@ -79,6 +79,7 @@ export async function createAppointment(req: Request, res: Response) {
       patientEmail: patient.email,
       doctorName: doctor[0].name,
       doctorEmail: doctor[0].email,
+      doctorPhone: doctor[0].phone,
       startsAt: created.startsAt,
       endsAt: created.endsAt,
     });

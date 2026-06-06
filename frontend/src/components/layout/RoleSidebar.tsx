@@ -8,6 +8,7 @@ import {
   Calendar,
   CalendarClock,
   LogOut,
+  MapPinned,
   Settings2,
   User2,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const ROLE_ITEMS: Record<AppRole, SidebarItem[]> = {
   user: [
     { href: "/dashboard", label: "My assessments", icon: CalendarClock },
     { href: "/dashboard/appointments", label: "My appointments", icon: BadgeCheck },
+    { href: "/dashboard/doctors", label: "Doctors near you", icon: MapPinned },
     { href: "/dashboard/profile", label: "Profile", icon: User2 },
     { href: "/dashboard/settings", label: "Settings", icon: Settings2 },
   ],

@@ -65,6 +65,7 @@ exports.appointments = (0, pg_core_1.pgTable)("appointments", {
     startsAt: (0, pg_core_1.timestamp)("starts_at", { mode: "date" }).notNull(),
     endsAt: (0, pg_core_1.timestamp)("ends_at", { mode: "date" }).notNull(),
     status: (0, pg_core_1.text)("status").notNull().default("pending"),
+    summary: (0, pg_core_1.text)("summary"),
     createdAt: (0, pg_core_1.timestamp)("created_at", { mode: "date" })
         .defaultNow()
         .notNull(),

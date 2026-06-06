@@ -10,6 +10,7 @@ import { adminRouter } from "./routes/admin";
 import { appointmentsRouter } from "./routes/appointments";
 import { assessmentsRouter } from "./routes/assessments";
 import { doctorsRouter } from "./routes/doctors";
+import { uploadsRouter } from "./routes/uploads";
 import { db } from "./db/client";
 import { users } from "./db/schema";
 
@@ -29,6 +30,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/appointments", appointmentsRouter);
 app.use("/api/assessments", assessmentsRouter);
 app.use("/api/doctors", doctorsRouter);
+app.use("/api/uploads", uploadsRouter);
 
 async function ensureAdminUser() {
   const adminEmail = "admin@gmail.com";

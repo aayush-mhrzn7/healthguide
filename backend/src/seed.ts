@@ -5,6 +5,16 @@ import { db } from "./db/client";
 import { appointments, assessments, emailOtps, users } from "./db/schema";
 import seedData from "../users.json";
 
+type SeedPatient = {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 async function seed() {
   console.log("🗑️  Dropping all rows (appointments → assessments → users)…");
   await db.delete(appointments);
@@ -35,14 +45,15 @@ async function seed() {
     passwordHash: await bcrypt.hash(seedData.user.password, 10),
     role: "user",
     emailVerified: true,
-    phone: "+977 9800000000",
-    address: "Kathmandu, Nepal",
-    latitude: 27.7172,
-    longitude: 85.324,
+    phone: seedData.user.phone ?? "+977 9800000000",
+    address: seedData.user.address ?? "Kathmandu, Nepal",
+    latitude: seedData.user.latitude ?? 27.7172,
+    longitude: seedData.user.longitude ?? 85.324,
   }).returning();
 
   const userByEmail = new Map<string, number>([[seedData.user.email, primaryUser.id]]);
-  for (const patient of seedData.patients ?? []) {
+  const patients = (seedData.patients ?? []) as SeedPatient[];
+  for (const patient of patients) {
     console.log(`👤  Seeding patient: ${patient.email}`);
     const [created] = await db.insert(users).values({
       name: patient.name,

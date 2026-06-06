@@ -281,7 +281,7 @@ export default function AppointmentsPage() {
                               className="inline-flex items-center gap-1 px-2 text-[11px] font-semibold text-primary"
                               onClick={() => setSummaryAppointment(appt)}
                             >
-                              View summary
+                              Know more about your doctor
                             </Button>
                           </td>
                         </tr>

@@ -119,8 +119,18 @@ async function sendVerificationOtpEmail(toEmail, code) {
     });
 }
 async function sendAppointmentBookedEmails(params) {
-    const { patientName, patientEmail, doctorName, doctorEmail, startsAt, endsAt } = params;
+    const { patientName, patientEmail, doctorName, doctorEmail, doctorPhone, startsAt, endsAt, } = params;
     const slotLabel = `${startsAt.toLocaleString()} - ${endsAt.toLocaleString()}`;
+    const doctorContact = doctorPhone
+        ? ` You can contact the doctor at <strong>${escapeHtml(doctorPhone)}</strong>.`
+        : doctorEmail
+            ? ` You can contact the doctor by email at <strong>${escapeHtml(doctorEmail)}</strong>.`
+            : "";
+    const doctorContactText = doctorPhone
+        ? ` You can contact the doctor at ${doctorPhone}.`
+        : doctorEmail
+            ? ` You can contact the doctor by email at ${doctorEmail}.`
+            : "";
     await Promise.all([
         sendMail({
             to: patientEmail,
@@ -128,9 +138,9 @@ async function sendAppointmentBookedEmails(params) {
             html: emailTemplate({
                 eyebrow: "Appointment request",
                 title: "Request received",
-                body: `<p style="margin:0 0 12px">Hi ${escapeHtml(patientName)},</p><p style="margin:0">Your appointment request with Dr. ${escapeHtml(doctorName)} for <strong>${escapeHtml(slotLabel)}</strong> has been received. We will email you when the doctor accepts or denies it.</p>`,
+                body: `<p style="margin:0 0 12px">Hi ${escapeHtml(patientName)},</p><p style="margin:0">Your appointment request is booked with <strong>Dr. ${escapeHtml(doctorName)}</strong> for <strong>${escapeHtml(slotLabel)}</strong>.${doctorContact} We will email you when the doctor accepts or denies it.</p>`,
             }),
-            text: `Hi ${patientName}, your appointment request with Dr. ${doctorName} for ${slotLabel} has been received. We will email you when the doctor accepts or denies it.`,
+            text: `Hi ${patientName}, your appointment request is booked with Dr. ${doctorName} for ${slotLabel}.${doctorContactText} We will email you when the doctor accepts or denies it.`,
         }),
         sendMail({
             to: doctorEmail,
