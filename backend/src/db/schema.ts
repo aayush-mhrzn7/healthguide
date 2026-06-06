@@ -81,6 +81,7 @@ export const appointments = pgTable("appointments", {
   startsAt: timestamp("starts_at", { mode: "date" }).notNull(),
   endsAt: timestamp("ends_at", { mode: "date" }).notNull(),
   status: text("status").notNull().default("pending"),
+  summary: text("summary"),
   createdAt: timestamp("created_at", { mode: "date" })
     .defaultNow()
     .notNull(),

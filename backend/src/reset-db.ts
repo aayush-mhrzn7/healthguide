@@ -68,6 +68,7 @@ async function resetDatabase() {
       starts_at TIMESTAMP NOT NULL,
       ends_at TIMESTAMP NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
+      summary TEXT,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
